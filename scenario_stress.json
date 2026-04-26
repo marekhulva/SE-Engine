@@ -1,0 +1,26 @@
+{
+  "title": "Future State — LA stress test (8 workloads, 6 HSX nodes)",
+  "sites": [
+    {
+      "name": "Vegas DC (Primary)",
+      "workloads": ["VMs", "Database", "Files", "Applications"],
+      "vm_count": 420, "storage_tb": 68,
+      "backup_software": "commvault", "backup_target": "hsx",
+      "hsx_nodes": 3, "hsx_tb": 150
+    },
+    {
+      "name": "Reno DC",
+      "workloads": ["VMs"],
+      "vm_count": 210, "storage_tb": 34,
+      "backup_software": "commvault", "backup_target": "hsx",
+      "hsx_nodes": 3, "hsx_tb": 150
+    },
+    {
+      "name": "LA DC",
+      "workloads": ["VMs", "Database", "Files", "Applications", "Exchange", "SAP", "Linux", "NAS"],
+      "vm_count": 820, "storage_tb": 140,
+      "backup_software": "commvault", "backup_target": "hsx",
+      "hsx_nodes": 6, "hsx_tb": 300
+    }
+  ]
+}

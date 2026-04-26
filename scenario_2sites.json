@@ -1,0 +1,25 @@
+{
+  "title": "Future State — 2 Sites",
+  "sites": [
+    {
+      "name": "Primary DC",
+      "workloads": ["VMs", "Database", "Files", "Applications"],
+      "vm_count": 320,
+      "storage_tb": 52,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "DR Site",
+      "workloads": ["VMs", "Files"],
+      "vm_count": 180,
+      "storage_tb": 28,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Future State — Primary DC",
+  "sites": [
+    {
+      "name": "Primary DC",
+      "workloads": ["VMs", "Files"],
+      "vm_count": 100,
+      "storage_tb": 10,
+      "backup_software": "commvault",
+      "backup_target": "pure"
+    }
+  ]
+}

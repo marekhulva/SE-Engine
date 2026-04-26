@@ -1,0 +1,35 @@
+{
+  "title": "Future State — Vegas / Reno / LA",
+  "sites": [
+    {
+      "name": "Vegas DC (Primary)",
+      "workloads": ["VMs", "Database", "Files", "Applications"],
+      "vm_count": 420,
+      "storage_tb": 68,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "Reno DC",
+      "workloads": ["VMs"],
+      "vm_count": 210,
+      "storage_tb": 34,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "LA DC",
+      "workloads": ["VMs", "Database", "Files", "Applications"],
+      "vm_count": 180,
+      "storage_tb": 28,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "title": "Future State — 4 Sites",
+  "sites": [
+    {
+      "name": "NYC DC (Primary)",
+      "workloads": ["VMs", "Database", "Files", "Applications"],
+      "vm_count": 540,
+      "storage_tb": 82,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 4,
+      "hsx_tb": 200
+    },
+    {
+      "name": "Dallas DR",
+      "workloads": ["VMs", "Database"],
+      "vm_count": 290,
+      "storage_tb": 44,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "Seattle Branch",
+      "workloads": ["Files", "Devices"],
+      "vm_count": 75,
+      "storage_tb": 12,
+      "backup_software": "commvault",
+      "backup_target": "pure"
+    },
+    {
+      "name": "Miami Edge",
+      "workloads": ["VMs", "Applications", "Files"],
+      "vm_count": 130,
+      "storage_tb": 22,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 2,
+      "hsx_tb": 100
+    }
+  ]
+}

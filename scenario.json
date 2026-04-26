@@ -1,0 +1,50 @@
+{
+  "title": "Future State — 5 Sites",
+  "sites": [
+    {
+      "name": "Primary DC",
+      "workloads": ["VMs", "Database", "Files"],
+      "vm_count": 320,
+      "storage_tb": 52,
+      "backup_software": "commvault",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "DR Site",
+      "workloads": ["VMs", "Applications"],
+      "vm_count": 180,
+      "storage_tb": 28,
+      "backup_software": "commvault",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    },
+    {
+      "name": "Chicago Branch",
+      "workloads": ["Files", "Devices", "Applications"],
+      "vm_count": 95,
+      "storage_tb": 18,
+      "backup_software": "commvault",
+      "hsx_nodes": 7,
+      "hsx_tb": 350
+    },
+    {
+      "name": "Austin Office",
+      "workloads": ["Database", "VMs", "Devices"],
+      "vm_count": 140,
+      "storage_tb": 31,
+      "backup_software": "commvault",
+      "hsx_nodes": 7,
+      "hsx_tb": 350
+    },
+    {
+      "name": "London DC",
+      "workloads": ["Files", "Applications", "VMs"],
+      "vm_count": 210,
+      "storage_tb": 40,
+      "backup_software": "commvault",
+      "hsx_nodes": 7,
+      "hsx_tb": 350
+    }
+  ]
+}

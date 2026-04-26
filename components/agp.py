@@ -1,0 +1,400 @@
+"""
+Air Gap Protect (AGP) + Cloud Cleanroom — from template slide 6.
+
+Faithful to the template:
+  - Cloud shape = real freeform extracted from template (agp_cloud.png)
+  - Inside each cloud: header text at top + primary icon + Azure logo
+  - Below each cloud: (tier) + XXTB Usable
+  - Status chips stack under each cloud
+  - Bottom: green callout spanning zone ("All Backups Replicated to AGP")
+  - Left: AirGapBreak = vertical orange lightning bolt + firewall icon + "Airgap" label
+"""
+from .base import Component, rect, text, oval, image, line
+from .tokens import COLORS, IMAGES
+from .status_label import ProtectionStatus
+
+
+CLOUD_PROVIDERS = {
+    'azure': {'logo_key': 'cloud_azure', 'short': 'Azure'},
+    'aws':   {'logo_key': None,          'short': 'AWS'},
+    'gcp':   {'logo_key': None,          'short': 'GCP'},
+    'oci':   {'logo_key': None,          'short': 'OCI'},
+}
+
+
+class _CloudBlock(Component):
+    """Cloud-shaped block wrapped in its own outline card. Header at top
+    of cloud, two icons inside, tier/capacity text below, then status
+    chips. Subclassed by AGPBlock / CloudCleanroom."""
+
+    # Cloud footprint — small, subordinate to DC sites
+    CLOUD_W = 1.30
+    CLOUD_H = 0.68
+
+    # Icons are absolute — decoupled from cloud size so the cloud can
+    # shrink without shrinking the shield / cube / Azure logo.
+    PRIMARY_ICON_SIZE = 0.34
+    LOGO_RATIO = 0.65          # logo = primary icon * this
+    ICON_GAP_FRAC = 0.06       # gap between primary icon and logo, as frac of CLOUD_W
+
+    # Text below the cloud (tier/tenant + capacity, optional retention)
+    DETAIL_H = 0.26          # two lines: tier + capacity
+    RETENTION_H = 0.14       # optional third line: "Nd retention"
+    DETAIL_GAP = 0.01
+
+    # Status chip block below the detail text
+    STATUS_GAP = 0.05
+
+    # Card wrapping each individual cloud block
+    CARD_PAD_X = 0.07
+    CARD_PAD_TOP = 0.05
+    CARD_PAD_BOTTOM = 0.06
+    CARD_RADIUS = 0.08
+
+    HEADER_FS = 10
+    DETAIL_FS = 8
+
+    # Visible cloud interior (as fractions of the cloud PNG box).
+    # The rendered cloud occupies most of the box with small padding.
+    INTERIOR_X0 = 0.12
+    INTERIOR_X1 = 0.88
+    ICONS_Y_CENTER = 0.55    # where the icon row sits vertically (centered)
+
+    # Header label sits ABOVE the card, not inside the cloud
+    LABEL_H = 0.22
+    LABEL_GAP = 0.04
+
+    DEFAULT_STATUS = []
+    PRIMARY_ICON_KEY = 'agp_shield'
+    HEADER_TEXT = 'AirGap Protect'
+
+    def __init__(self, cloud_provider='azure', detail_top=None,
+                 capacity_tb=0, retention_days=None,
+                 status_labels=None, header=None):
+        self.cloud_provider = cloud_provider
+        self.detail_top = detail_top or ''   # e.g. "Infrequent Tier" or "Customer Tenant"
+        self.capacity_tb = capacity_tb
+        self.retention_days = retention_days
+        self.header = header or self.HEADER_TEXT
+        self.status_labels = list(status_labels or self.DEFAULT_STATUS)
+        self.status = ProtectionStatus(self.status_labels)
+
+    def preferred_size(self):
+        sw, sh = self.status.preferred_size()
+        inner_w = max(self.CLOUD_W, sw)
+        retention_h = self.RETENTION_H if self.retention_days else 0
+        card_inner_h = (self.CLOUD_H + self.DETAIL_GAP + self.DETAIL_H
+                        + retention_h + self.STATUS_GAP + sh)
+        w = inner_w + self.CARD_PAD_X * 2
+        h = (self.LABEL_H + self.LABEL_GAP
+             + card_inner_h + self.CARD_PAD_TOP + self.CARD_PAD_BOTTOM)
+        return (w, h)
+
+    def render(self, x, y, w, h):
+        shapes = []
+
+        # Header label ABOVE the card (outside, not overlapping cloud)
+        shapes.append(text(x, y, w, self.LABEL_H,
+                           self.header, fs=self.HEADER_FS, bold=True,
+                           color=COLORS['text_primary'],
+                           align='center', valign='middle'))
+
+        card_y = y + self.LABEL_H + self.LABEL_GAP
+        card_h = h - self.LABEL_H - self.LABEL_GAP
+
+        # Outer card around the cloud + details + chips
+        shapes.append(rect(x, card_y, w, card_h,
+                           fill=None,
+                           stroke=COLORS['text_primary'], sw=0.75,
+                           radius=self.CARD_RADIUS))
+
+        inner_x = x + self.CARD_PAD_X
+        inner_y = card_y + self.CARD_PAD_TOP
+        inner_w = w - self.CARD_PAD_X * 2
+
+        # Cloud image — natural size, centered within inner width
+        cloud_x = inner_x + (inner_w - self.CLOUD_W) / 2
+        cloud_y = inner_y
+        shapes.append(image(cloud_x, cloud_y, self.CLOUD_W, self.CLOUD_H,
+                            IMAGES['agp_cloud']))
+
+        # Icon row: primary icon + smaller cloud provider logo, centered
+        # horizontally and vertically aligned on a shared centerline.
+        icon_size = self.PRIMARY_ICON_SIZE
+        logo_size = icon_size * self.LOGO_RATIO
+        icon_gap = self.CLOUD_W * self.ICON_GAP_FRAC
+        row_w = icon_size + icon_gap + logo_size
+        row_x = cloud_x + (self.CLOUD_W - row_w) / 2
+        row_center_y = cloud_y + self.CLOUD_H * self.ICONS_Y_CENTER
+
+        primary_x = row_x
+        primary_y = row_center_y - icon_size / 2
+        logo_x = row_x + icon_size + icon_gap
+        logo_y = row_center_y - logo_size / 2
+
+        shapes.append(image(primary_x, primary_y, icon_size, icon_size,
+                            IMAGES[self.PRIMARY_ICON_KEY]))
+        shapes.extend(self._render_provider_logo(logo_x, logo_y, logo_size))
+
+        # Detail text below the cloud — two lines (tier, then capacity)
+        detail_y = cloud_y + self.CLOUD_H + self.DETAIL_GAP
+        line_h = self.DETAIL_H / 2
+        shapes.append(text(inner_x, detail_y, inner_w, line_h,
+                           f'({self.detail_top})',
+                           fs=self.DETAIL_FS,
+                           color=COLORS['text_primary'],
+                           align='center', valign='middle'))
+        shapes.append(text(inner_x, detail_y + line_h, inner_w, line_h,
+                           f'{self.capacity_tb}TB Usable',
+                           fs=self.DETAIL_FS, bold=True,
+                           color=COLORS['text_primary'],
+                           align='center', valign='middle'))
+
+        # Optional third line: retention ("30d retention")
+        retention_y_end = detail_y + self.DETAIL_H
+        if self.retention_days:
+            shapes.append(text(inner_x, retention_y_end,
+                               inner_w, self.RETENTION_H,
+                               f'{self.retention_days}-day retention',
+                               fs=self.DETAIL_FS, bold=True,
+                               color=COLORS['positive'],
+                               align='center', valign='middle'))
+            retention_y_end += self.RETENTION_H
+
+        # Status chips below detail text
+        status_y = retention_y_end + self.STATUS_GAP
+        sw, sh = self.status.preferred_size()
+        shapes.extend(self.status.render(inner_x + (inner_w - sw) / 2,
+                                         status_y, sw, sh))
+        return shapes
+
+    def _render_provider_logo(self, x, y, size):
+        cfg = CLOUD_PROVIDERS.get(self.cloud_provider,
+                                  CLOUD_PROVIDERS['azure'])
+        logo_key = cfg['logo_key']
+        if logo_key and IMAGES.get(logo_key):
+            return [image(x, y, size, size, IMAGES[logo_key])]
+        return [oval(x, y, size, size,
+                     fill=COLORS['subzone_bg'],
+                     stroke=COLORS['text_primary'], sw=1,
+                     text_content=cfg['short'],
+                     fs=8, text_color=COLORS['text_primary'])]
+
+
+class AGPBlock(_CloudBlock):
+    DEFAULT_STATUS = ['Immutable', 'Deduped', 'Encrypted']
+    PRIMARY_ICON_KEY = 'agp_shield'
+    HEADER_TEXT = 'AirGap Protect'
+
+    def __init__(self, cloud_provider='azure', tier='Infrequent Tier',
+                 capacity_tb=120, retention_days=None,
+                 status_labels=None, header=None):
+        super().__init__(cloud_provider=cloud_provider,
+                         detail_top=tier,
+                         capacity_tb=capacity_tb,
+                         retention_days=retention_days,
+                         status_labels=status_labels,
+                         header=header)
+
+
+class CloudCleanroom(_CloudBlock):
+    """Cleanroom is a recovery/testing environment — no retention concept."""
+    DEFAULT_STATUS = ['Cyber Recovery', 'CR Testing', 'Forensic Analysis']
+    PRIMARY_ICON_KEY = 'agp_cleanroom'
+    HEADER_TEXT = 'Cloud Cleanroom'
+
+    def __init__(self, cloud_provider='azure', tenant='Customer Tenant',
+                 capacity_tb=40, status_labels=None, header=None):
+        super().__init__(cloud_provider=cloud_provider,
+                         detail_top=tenant,
+                         capacity_tb=capacity_tb,
+                         status_labels=status_labels,
+                         header=header)
+
+
+class AirGapBreak(Component):
+    """Brick-wall firewall sitting ON a horizontal connection line, with
+    a lightning bolt above and an "Airgap" label below — matches the
+    template (slide 5) where the connection line passes through the
+    wall's vertical center.
+
+    Layout::
+
+            ⚡          ← bolt, above the line
+          ┌────┐
+        ──│████│──     ← horizontal line passes through wall center
+          └────┘
+          "Airgap"     ← label, below
+    """
+    W = 0.50
+    BOLT_W = 0.11
+    BOLT_H = 0.24
+    BOLT_GAP = 0.02
+    WALL_SIZE = 0.34
+    LABEL_GAP = 0.04
+    LABEL_H = 0.18
+    H = BOLT_H + BOLT_GAP + WALL_SIZE + LABEL_GAP + LABEL_H
+
+    # Vertical offset (from box top) to the wall center — i.e. the Y at
+    # which a horizontal connection line should pass through this box so
+    # the wall sits on the line.
+    LINE_Y_FROM_TOP = BOLT_H + BOLT_GAP + WALL_SIZE / 2
+
+    def preferred_size(self):
+        return (self.W, self.H)
+
+    def render(self, x, y, w, h):
+        cx = x + w / 2
+        shapes = []
+
+        # Bolt sits centered above the wall
+        bolt_y = y
+        shapes.append(image(cx - self.BOLT_W / 2, bolt_y,
+                            self.BOLT_W, self.BOLT_H, IMAGES['agp_bolt']))
+
+        # Brick wall — its vertical center lines up with the connection line
+        wall_y = bolt_y + self.BOLT_H + self.BOLT_GAP
+        shapes.append(image(cx - self.WALL_SIZE / 2, wall_y,
+                            self.WALL_SIZE, self.WALL_SIZE,
+                            IMAGES['agp_firewall']))
+
+        # "Airgap" label below the wall
+        label_y = wall_y + self.WALL_SIZE + self.LABEL_GAP
+        shapes.append(text(x, label_y, w, self.LABEL_H,
+                           '"Airgap"', fs=9,
+                           color=COLORS['text_primary'],
+                           align='center', valign='middle'))
+        return shapes
+
+
+class AGPZone(Component):
+    """Wrapper: AirGapBreak on the left, then AGP card with optional
+    Cleanroom card placed SIDE-BY-SIDE next to it. Each cloud block is
+    its own individually-outlined card. Callout bar spans underneath
+    both cards when present."""
+    BREAK_GAP = 0.10
+    SIBLING_GAP = 0.14     # horizontal gap between sibling AGP cards
+    CLEANROOM_GAP = 0.50   # wider gap between AGP group and Cleanroom
+    CALLOUT_GAP = 0.10
+    CALLOUT_H = 0.28
+
+    def __init__(self, config):
+        self.break_ = AirGapBreak()
+
+        # Collect AGP tier cards. Either `tiers: [...]` (multi-tier) or the
+        # legacy single-card fields (tier / capacity_tb / retention_days).
+        provider = config.get('cloud_provider', 'azure')
+        tier_entries = config.get('tiers')
+        if not tier_entries:
+            tier_entries = [{
+                'tier': config.get('tier', 'Infrequent Tier'),
+                'capacity_tb': config.get('capacity_tb', 120),
+                'retention_days': config.get('retention_days'),
+                'status_labels': config.get('status_labels'),
+            }]
+        self.agps = [AGPBlock(
+            cloud_provider=t.get('cloud_provider', provider),
+            tier=t.get('tier', 'Infrequent Tier'),
+            capacity_tb=t.get('capacity_tb', 120),
+            retention_days=t.get('retention_days'),
+            status_labels=t.get('status_labels'),
+        ) for t in tier_entries]
+
+        cr = config.get('cleanroom')
+        self.cleanroom = None
+        if cr:
+            self.cleanroom = CloudCleanroom(
+                cloud_provider=cr.get('cloud_provider', provider),
+                tenant=cr.get('tenant', 'Customer Tenant'),
+                capacity_tb=cr.get('capacity_tb', 40),
+                status_labels=cr.get('status_labels'),
+            )
+        self.callout_text = config.get('callout',
+                                       'All Backups Replicated to AGP')
+
+    def preferred_size(self):
+        bw, _ = self.break_.preferred_size()
+        agp_sizes = [c.preferred_size() for c in self.agps]
+        agps_w = (sum(w for w, _ in agp_sizes)
+                  + self.SIBLING_GAP * (len(self.agps) - 1))
+        all_heights = [h for _, h in agp_sizes]
+
+        cards_w = agps_w
+        if self.cleanroom:
+            cw, ch = self.cleanroom.preferred_size()
+            cards_w += self.CLEANROOM_GAP + cw
+            all_heights.append(ch)
+        cards_h = max(all_heights)
+
+        total_w = bw + self.BREAK_GAP + cards_w
+        total_h = cards_h + self.CALLOUT_GAP + self.CALLOUT_H
+        return (total_w, total_h)
+
+    def cloud_entry_x(self, x):
+        """Absolute X of the first AGP cloud's left edge — where source
+        connection lines should terminate so they visually enter the cloud."""
+        bw, _ = self.break_.preferred_size()
+        return x + bw + self.BREAK_GAP
+
+    def cloud_entry_y(self, y):
+        """Absolute Y of the first AGP cloud's vertical center — the line
+        on which source connections sit (and through which the AirGapBreak's
+        wall is centered)."""
+        first = self.agps[0]
+        return (y + first.LABEL_H + first.LABEL_GAP
+                + first.CARD_PAD_TOP + first.CLOUD_H / 2)
+
+    def render(self, x, y, w, h):
+        shapes = []
+        bw, bh = self.break_.preferred_size()
+        agp_sizes = [c.preferred_size() for c in self.agps]
+        all_heights = [h_ for _, h_ in agp_sizes]
+        if self.cleanroom:
+            all_heights.append(self.cleanroom.preferred_size()[1])
+        cards_h = max(all_heights)
+
+        agp_x = self.cloud_entry_x(x)
+        agp_center_y = self.cloud_entry_y(y)
+
+        # AirGapBreak placed so the connection line (at agp_center_y)
+        # passes through the wall's vertical center. Source lines are
+        # drawn separately by the layout engine BEFORE this zone renders,
+        # so the wall image visually covers the line where they overlap.
+        break_y = agp_center_y - self.break_.LINE_Y_FROM_TOP
+        shapes.extend(self.break_.render(x, break_y, bw, bh))
+
+        # Render AGP cards left-to-right
+        cx = agp_x
+        for card, (cw_, ch_) in zip(self.agps, agp_sizes):
+            shapes.extend(card.render(cx, y, cw_, ch_))
+            cx += cw_ + self.SIBLING_GAP
+        agps_right = cx - self.SIBLING_GAP
+
+        # Cleanroom: separated by a wider gap with a vertical interrupted
+        # (dashed) line down the middle — visually decoupling the "backup
+        # copy" cards from the "recovery environment".
+        if self.cleanroom:
+            cw_, ch_ = self.cleanroom.preferred_size()
+            cr_x = agp_x + (agps_right - agp_x) + self.CLEANROOM_GAP
+            # Vertical dashed divider centered in the gap, aligned with the
+            # cards vertically (matches card top/bottom for a clean read).
+            divider_x = agps_right + self.CLEANROOM_GAP / 2
+            shapes.append(line(divider_x, y,
+                               divider_x, y + cards_h,
+                               stroke=COLORS['text_muted'], sw=1.0,
+                               dash='dash'))
+            shapes.extend(self.cleanroom.render(cr_x, y, cw_, ch_))
+
+        # Callout bar spans ONLY the AGP cards (not the cleanroom)
+        cards_w = agps_right - agp_x
+        callout_y = y + cards_h + self.CALLOUT_GAP
+        shapes.append(rect(agp_x, callout_y, cards_w, self.CALLOUT_H,
+                           fill='#0F2E1A',
+                           stroke=COLORS['positive'], sw=0.75,
+                           radius=0.05))
+        shapes.append(text(agp_x, callout_y, cards_w, self.CALLOUT_H,
+                           f'✓  {self.callout_text}',
+                           fs=9, bold=True,
+                           color=COLORS['positive'],
+                           align='center', valign='middle'))
+        return shapes

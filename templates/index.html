@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ArchGram</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a1a; color: #fff; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    header {
+      background: #111; padding: 10px 20px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid #333; flex-shrink: 0;
+    }
+    header h1 { font-size: 16px; color: #7030A0; letter-spacing: 2px; margin-right: 8px; }
+    .btn { padding: 7px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: Arial; font-weight: bold; }
+    .btn-primary { background: #7030A0; color: #fff; }
+    .btn-primary:hover { background: #834895; }
+    .btn-download { background: #1e1e1e; color: #fff; border: 1px solid #444; }
+    .btn-download:hover { background: #2a2a2a; }
+    .btn-preset { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; font-weight: normal; }
+    .btn-preset:hover { background: #383838; color: #fff; }
+    .preset-group { display: flex; gap: 6px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #333; }
+    .preset-group label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; align-self: center; margin-right: 4px; }
+    #status { font-size: 12px; color: #666; margin-left: auto; }
+
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar {
+      width: 300px; background: #111; border-right: 1px solid #222;
+      display: flex; flex-direction: column; padding: 14px; gap: 10px;
+      overflow-y: auto; flex-shrink: 0;
+    }
+    .sidebar label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .sidebar textarea {
+      flex: 1; min-height: 300px; background: #0d0d0d; color: #c8c8c8;
+      border: 1px solid #2a2a2a; border-radius: 4px; padding: 10px;
+      font-family: 'Courier New', monospace; font-size: 11px; resize: none;
+      line-height: 1.5;
+    }
+    .sidebar textarea:focus { outline: none; border-color: #7030A0; }
+
+    .canvas-wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: auto; padding: 24px; background: #242424;
+    }
+    .canvas-container { box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ARCHGRAM</h1>
+  <button class="btn btn-primary" onclick="generate()">&#9654; Generate</button>
+  <button class="btn btn-download" onclick="downloadPptx()">&#8595; Download PPTX</button>
+  <div class="preset-group">
+    <label>Scenario:</label>
+    <button class="btn btn-preset" onclick="loadPreset('one')">1 Site</button>
+    <button class="btn btn-preset" onclick="loadPreset('two')">2 Sites</button>
+    <button class="btn btn-preset" onclick="loadPreset('vegas')">Vegas / Reno / LA</button>
+    <button class="btn btn-preset" onclick="loadRandom4()">4 Sites (Random)</button>
+    <button class="btn btn-preset" onclick="loadPreset('stress')">Stress (8+6)</button>
+  </div>
+  <span id="status">Ready</span>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <label>Scenario JSON</label>
+    <textarea id="scenario" spellcheck="false"></textarea>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+  </div>
+</div>
+
+<script>
+  const SLIDE_W = 13.33;
+  const SLIDE_H = 7.5;
+  const PX = 96; // logical pixels per inch (1280/13.33 ≈ 96)
+  const CW = Math.round(SLIDE_W * PX); // 1280
+  const CH = Math.round(SLIDE_H * PX); // 720
+  const DPR = Math.max(2, window.devicePixelRatio || 2); // supersample at ≥2x for crisp text
+
+  const canvas = new fabric.Canvas('c', {
+    width: CW, height: CH,
+    enableRetinaScaling: true,
+    selection: true,
+    backgroundColor: '#000000'
+  });
+  // Force supersampled backing store for sharper text
+  canvas.getElement().style.width = CW + 'px';
+  canvas.getElement().style.height = CH + 'px';
+  canvas.setDimensions({ width: CW * DPR, height: CH * DPR }, { backstoreOnly: true });
+  canvas.setZoom(DPR);
+
+  // ===== Scenario presets =====
+  const PRESETS = {
+    one: {
+      "title": "Future State — Primary DC",
+      "sites": [{
+        "name": "Primary DC",
+        "workloads": ["VMs", "Database", "Files", "Applications"],
+        "vm_count": 320, "storage_tb": 52,
+        "backup_software": "commvault", "backup_target": "hsx",
+        "hsx_nodes": 3, "hsx_tb": 150
+      }]
+    },
+    two: {
+      "title": "Future State — 2 Sites",
+      "sites": [
+        {"name": "Primary DC", "workloads": ["VMs", "Database", "Files", "Applications"],
+         "vm_count": 320, "storage_tb": 52, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
+        {"name": "DR Site", "workloads": ["VMs", "Files"],
+         "vm_count": 180, "storage_tb": 28, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150}
+      ]
+    },
+    vegas: {
+      "title": "Future State — Vegas / Reno / LA",
+      "sites": [
+        {"name": "Vegas DC (Primary)", "workloads": ["VMs", "Database", "Files", "Applications"],
+         "vm_count": 420, "storage_tb": 68, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
+        {"name": "Reno DC", "workloads": ["VMs"],
+         "vm_count": 210, "storage_tb": 34, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
+        {"name": "LA DC", "workloads": ["VMs", "Database", "Files", "Applications"],
+         "vm_count": 180, "storage_tb": 28, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150}
+      ]
+    },
+    stress: {
+      "title": "Future State — LA stress test (8 workloads, 6 HSX nodes)",
+      "sites": [
+        {"name": "Vegas DC (Primary)", "workloads": ["VMs", "Database", "Files", "Applications"],
+         "vm_count": 420, "storage_tb": 68, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
+        {"name": "Reno DC", "workloads": ["VMs"],
+         "vm_count": 210, "storage_tb": 34, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
+        {"name": "LA DC", "workloads": ["VMs", "Database", "Files", "Applications", "Exchange", "SAP", "Linux", "NAS"],
+         "vm_count": 820, "storage_tb": 140, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 6, "hsx_tb": 300}
+      ]
+    }
+  };
+
+  function loadPreset(name) {
+    document.getElementById('scenario').value = JSON.stringify(PRESETS[name], null, 2);
+    generate();
+  }
+
+  function loadRandom4() {
+    const WORKLOADS = ['VMs', 'Database', 'Files', 'Applications', 'Devices'];
+    const CITIES = ['NYC', 'Austin', 'Denver', 'Seattle', 'Boston', 'Atlanta', 'Miami', 'Chicago', 'Phoenix', 'Dallas'];
+    const SUFFIX = ['DC', 'DC (Primary)', 'Branch', 'Edge', 'DR'];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const pickN = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+    const shuffled = [...CITIES].sort(() => Math.random() - 0.5).slice(0, 4);
+    const sites = shuffled.map((city, i) => {
+      const target = Math.random() < 0.7 ? 'hsx' : 'pure';
+      const s = {
+        name: `${city} ${pick(SUFFIX)}`,
+        workloads: pickN(WORKLOADS, 2 + Math.floor(Math.random() * 3)),
+        vm_count: pick([95, 140, 220, 310, 420, 540, 720]),
+        storage_tb: pick([14, 22, 38, 56, 82, 110, 160]),
+        backup_software: 'commvault',
+        backup_target: target,
+      };
+      if (target === 'hsx') {
+        s.hsx_nodes = 2 + Math.floor(Math.random() * 3);
+        s.hsx_tb = s.hsx_nodes * 50;
+      }
+      return s;
+    });
+    const scenario = { title: 'Future State — 4 Sites (Random)', sites };
+    document.getElementById('scenario').value = JSON.stringify(scenario, null, 2);
+    generate();
+  }
+
+  // Load current scenario from server and auto-render.
+  // Claude (or later the AI parser) writes to scenario_current.json; refresh to see it.
+  fetch('/scenario')
+    .then(r => r.text())
+    .then(txt => {
+      document.getElementById('scenario').value = txt;
+      generate();
+    });
+
+  function px(inches) { return inches * PX; }
+
+  function renderShapes(data) {
+    canvas.clear();
+    canvas.setBackgroundColor(data.background, () => {});
+
+    const imagePromises = [];
+
+    data.shapes.forEach(s => {
+      if (s.type === 'rect') {
+        const r = s.radius ? px(s.radius) : 0;
+        const rectShape = new fabric.Rect({
+          left: px(s.x), top: px(s.y),
+          width: px(s.w), height: px(s.h),
+          rx: r, ry: r,
+          fill: s.fill || 'transparent',
+          stroke: s.stroke || null,
+          strokeWidth: s.stroke ? (s.sw || 1) : 0,
+          selectable: true, hasControls: true
+        });
+        if (s.gradient) {
+          rectShape.set('fill', new fabric.Gradient({
+            type: 'linear',
+            coords: { x1: 0, y1: 0, x2: 0, y2: px(s.h) },
+            colorStops: [
+              { offset: 0, color: s.gradient[0] },
+              { offset: 1, color: s.gradient[1] }
+            ]
+          }));
+        }
+        canvas.add(rectShape);
+
+      } else if (s.type === 'text') {
+        const tb = new fabric.Textbox(s.text || '', {
+          left: px(s.x),
+          width: px(s.w),
+          fontSize: (s.fs || 10) * 1.33,
+          fill: s.color || '#FFFFFF',
+          fontFamily: 'Arial',
+          fontWeight: s.bold ? 'bold' : 'normal',
+          textAlign: s.align || 'left',
+          selectable: true, hasControls: true,
+          editable: true
+        });
+        // Use Fabric's originY to anchor text vertically — more reliable
+        // than computing from tb.height (which includes line-box padding).
+        if (s.valign === 'middle') {
+          tb.set({ originY: 'center', top: px(s.y) + px(s.h) / 2 });
+        } else if (s.valign === 'bottom') {
+          tb.set({ originY: 'bottom', top: px(s.y) + px(s.h) });
+        } else {
+          tb.set({ top: px(s.y) });
+        }
+        canvas.add(tb);
+
+      } else if (s.type === 'oval') {
+        const el = new fabric.Ellipse({
+          left: px(s.x), top: px(s.y),
+          rx: px(s.w) / 2, ry: px(s.h) / 2,
+          fill: s.fill || 'transparent',
+          stroke: s.stroke || null,
+          strokeWidth: s.stroke ? (s.sw || 1) : 0,
+          selectable: true
+        });
+        canvas.add(el);
+        if (s.text) {
+          canvas.add(new fabric.Text(s.text, {
+            left: px(s.x) + px(s.w) / 2,
+            top: px(s.y) + px(s.h) / 2,
+            fontSize: (s.fs || 7) * 1.33,
+            fill: s.text_color || '#FFFFFF',
+            fontFamily: 'Arial', fontWeight: 'bold',
+            originX: 'center', originY: 'center',
+            selectable: true
+          }));
+        }
+
+      } else if (s.type === 'line') {
+        const ln = new fabric.Line(
+          [px(s.x1), px(s.y1), px(s.x2), px(s.y2)],
+          {
+            stroke: s.stroke || '#5C5F6B',
+            strokeWidth: s.sw || 1,
+            strokeDashArray: s.dash === 'dash' ? [6, 4]
+                             : s.dash === 'dot' ? [2, 3] : null,
+            selectable: true
+          }
+        );
+        canvas.add(ln);
+
+      } else if (s.type === 'image') {
+        const url = '/assets/' + s.src;
+        const p = new Promise(resolve => {
+          fabric.Image.fromURL(url, img => {
+            if (img && img.width) {
+              img.set({
+                left: px(s.x), top: px(s.y),
+                scaleX: px(s.w) / img.width,
+                scaleY: px(s.h) / img.height,
+                selectable: true
+              });
+              canvas.add(img);
+            }
+            resolve();
+          }, { crossOrigin: 'anonymous' });
+        });
+        imagePromises.push(p);
+      }
+    });
+
+    Promise.all(imagePromises).then(() => canvas.renderAll());
+  }
+
+  async function generate() {
+    const status = document.getElementById('status');
+    status.textContent = 'Generating...';
+    try {
+      const scenario = JSON.parse(document.getElementById('scenario').value);
+      const res = await fetch('/layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scenario)
+      });
+      const data = await res.json();
+      renderShapes(data);
+      status.textContent = `${data.detail_level} detail — ${data.shapes.length} shapes`;
+    } catch(e) {
+      status.textContent = 'Error: ' + e.message;
+      console.error(e);
+    }
+  }
+
+  async function downloadPptx() {
+    const status = document.getElementById('status');
+    status.textContent = 'Generating PPTX...';
+    try {
+      const scenario = JSON.parse(document.getElementById('scenario').value);
+      const res = await fetch('/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scenario)
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'diagram.pptx'; a.click();
+      status.textContent = 'Downloaded!';
+    } catch(e) {
+      status.textContent = 'Error: ' + e.message;
+    }
+  }
+
+  // Auto-generate on load
+  generate();
+</script>
+</body>
+</html>

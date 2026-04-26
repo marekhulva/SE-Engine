@@ -1,0 +1,58 @@
+{
+  "title": "Future State \u2014 4 Sites (Random)",
+  "sites": [
+    {
+      "name": "Austin DC",
+      "workloads": [
+        "Applications",
+        "Database",
+        "VMs",
+        "Files"
+      ],
+      "vm_count": 310,
+      "storage_tb": 56,
+      "backup_software": "commvault",
+      "backup_target": "pure"
+    },
+    {
+      "name": "Denver DC",
+      "workloads": [
+        "Devices",
+        "Database",
+        "VMs",
+        "Files"
+      ],
+      "vm_count": 220,
+      "storage_tb": 14,
+      "backup_software": "commvault",
+      "backup_target": "pure"
+    },
+    {
+      "name": "Phoenix Branch",
+      "workloads": [
+        "VMs",
+        "Files"
+      ],
+      "vm_count": 220,
+      "storage_tb": 38,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 4,
+      "hsx_tb": 200
+    },
+    {
+      "name": "Boston Edge",
+      "workloads": [
+        "Database",
+        "VMs",
+        "Devices"
+      ],
+      "vm_count": 480,
+      "storage_tb": 56,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 150
+    }
+  ]
+}

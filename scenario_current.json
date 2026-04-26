@@ -1,0 +1,48 @@
+{
+  "title": "Future State \u2014 OnPrem + DR + SaaS with AGP & Cleanroom",
+  "sites": [
+    {
+      "id": "production",
+      "name": "Production DC",
+      "workloads": ["VMs", "DBs", "File Systems"],
+      "vm_count": 150,
+      "storage_tb": 120,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 180,
+      "retention_days": 30
+    },
+    {
+      "id": "dr",
+      "name": "DR Site",
+      "workloads": ["VMs", "DBs", "File Systems"],
+      "vm_count": 60,
+      "storage_tb": 50,
+      "backup_software": "commvault",
+      "backup_target": "pure",
+      "retention_days": 15,
+      "media_agents": 2
+    },
+    {
+      "id": "saas",
+      "type": "saas",
+      "name": "SaaS Tenants",
+      "apps": ["M365", "Active Directory", "Salesforce"]
+    }
+  ],
+  "connections": [
+    {"from": "production", "to": "dr", "speed": "Replication"}
+  ],
+  "agp": {
+    "cloud_provider": "azure",
+    "tier": "Cool Tier",
+    "capacity_tb": 200,
+    "retention_days": 180,
+    "callout": "All Backups Replicated to AGP",
+    "cleanroom": {
+      "tenant": "Customer Tenant",
+      "capacity_tb": 50
+    }
+  }
+}
