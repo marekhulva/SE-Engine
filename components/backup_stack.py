@@ -92,16 +92,6 @@ class BackupSoftwareStack(Component):
     def preferred_size(self):
         return (self.CARD_W, self.CARD_H)
 
-    # Card can shrink to this fraction of its preferred width (aspect
-    # preserved in render) and still leave the CS indicator + UI thumbnail
-    # legible. Tuned empirically — go lower and the label under the card
-    # starts to wrap.
-    MIN_SHRINK_FRAC = 0.78
-
-    def min_size(self):
-        return (self.CARD_W * self.MIN_SHRINK_FRAC,
-                self.CARD_H * self.MIN_SHRINK_FRAC)
-
     def render(self, x, y, w, h):
         aspect = self.CARD_W / self.CARD_H
         card_w = min(self.CARD_W, w)

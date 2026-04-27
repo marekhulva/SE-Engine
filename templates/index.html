@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ArchGram</title>
+  <title>SE Engine</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,18 +41,36 @@
     .sidebar textarea:focus { outline: none; border-color: #7030A0; }
 
     .canvas-wrap {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      overflow: auto; padding: 24px; background: #242424;
+      flex: 1; position: relative; overflow: hidden;
+      background: #0a0a0a; cursor: grab;
     }
-    .canvas-container { box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
+    .canvas-wrap.panning { cursor: grabbing; }
+    .canvas-wrap canvas { display: block; }
+    .canvas-overlay {
+      position: absolute; bottom: 12px; left: 12px;
+      display: flex; gap: 6px; z-index: 10;
+    }
+    .canvas-overlay .btn-mini {
+      padding: 5px 10px; font-size: 11px; font-weight: normal;
+      background: rgba(0,0,0,0.65); color: #ccc;
+      border: 1px solid #333; border-radius: 4px;
+      cursor: pointer; backdrop-filter: blur(4px);
+    }
+    .canvas-overlay .btn-mini:hover { background: rgba(112,48,160,0.4); color: #fff; border-color: #7030A0; }
+    .zoom-readout {
+      position: absolute; bottom: 12px; right: 12px; z-index: 10;
+      padding: 4px 8px; font-size: 11px; color: #888;
+      background: rgba(0,0,0,0.65); border: 1px solid #333; border-radius: 4px;
+      backdrop-filter: blur(4px); font-family: 'Courier New', monospace;
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>ARCHGRAM</h1>
+  <h1>SE ENGINE</h1>
   <button class="btn btn-primary" onclick="generate()">&#9654; Generate</button>
-  <button class="btn btn-download" onclick="downloadPptx()">&#8595; Download PPTX</button>
+  <button class="btn btn-download" onclick="downloadPptx()">&#8595; Print to PDF</button>
   <div class="preset-group">
     <label>Scenario:</label>
     <button class="btn btn-preset" onclick="loadPreset('one')">1 Site</button>
@@ -69,30 +87,122 @@
     <label>Scenario JSON</label>
     <textarea id="scenario" spellcheck="false"></textarea>
   </div>
-  <div class="canvas-wrap">
+  <div class="canvas-wrap" id="canvasWrap">
     <canvas id="c"></canvas>
+    <div class="canvas-overlay">
+      <button class="btn-mini" onclick="fitToScreen()">⛶ Fit (F)</button>
+      <button class="btn-mini" onclick="resetZoom()">1:1</button>
+    </div>
+    <div class="zoom-readout" id="zoomReadout">100%</div>
   </div>
 </div>
 
 <script>
-  const SLIDE_W = 13.33;
-  const SLIDE_H = 7.5;
-  const PX = 96; // logical pixels per inch (1280/13.33 ≈ 96)
-  const CW = Math.round(SLIDE_W * PX); // 1280
-  const CH = Math.round(SLIDE_H * PX); // 720
-  const DPR = Math.max(2, window.devicePixelRatio || 2); // supersample at ≥2x for crisp text
+  // Logical pixels per inch — components are designed in inches; we scale
+  // to a base 96-DPI raster, then the user zooms freely on top of that.
+  const PX = 96;
+  const DPR = Math.max(2, window.devicePixelRatio || 2);
+
+  const wrap = document.getElementById('canvasWrap');
+
+  function viewportSize() {
+    const rect = wrap.getBoundingClientRect();
+    return { w: Math.max(rect.width, 200), h: Math.max(rect.height, 200) };
+  }
 
   const canvas = new fabric.Canvas('c', {
-    width: CW, height: CH,
+    width: viewportSize().w,
+    height: viewportSize().h,
     enableRetinaScaling: true,
-    selection: true,
-    backgroundColor: '#000000'
+    selection: false,
+    backgroundColor: '#000000',
+    fireRightClick: false,
+    stopContextMenu: true,
   });
-  // Force supersampled backing store for sharper text
-  canvas.getElement().style.width = CW + 'px';
-  canvas.getElement().style.height = CH + 'px';
-  canvas.setDimensions({ width: CW * DPR, height: CH * DPR }, { backstoreOnly: true });
-  canvas.setZoom(DPR);
+
+  // Fabric stores the user's zoom in canvas.viewportTransform[0] / [3].
+  // We supersample for crispness via a backing-store DPR multiplier handled
+  // separately in resizeCanvas() below.
+  let userZoom = 1.0;
+  // Content bbox in inches, set by renderShapes(); used for fit-to-screen.
+  let contentInches = { w: 13.33, h: 7.5 };
+
+  function resizeCanvas() {
+    const v = viewportSize();
+    canvas.setWidth(v.w);
+    canvas.setHeight(v.h);
+    canvas.calcOffset();
+    canvas.renderAll();
+  }
+  window.addEventListener('resize', () => { resizeCanvas(); });
+
+  function applyZoom(z, around) {
+    userZoom = Math.max(0.1, Math.min(z, 8));
+    const point = around || new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
+    canvas.zoomToPoint(point, userZoom);
+    document.getElementById('zoomReadout').textContent = Math.round(userZoom * 100) + '%';
+  }
+
+  function fitToScreen() {
+    const v = viewportSize();
+    const contentPx = { w: contentInches.w * PX, h: contentInches.h * PX };
+    const fit = Math.min(v.w / contentPx.w, v.h / contentPx.h) * 0.95;
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);  // reset
+    applyZoom(fit, new fabric.Point(0, 0));
+    // Center content in viewport
+    const offsetX = (v.w - contentPx.w * fit) / 2;
+    const offsetY = (v.h - contentPx.h * fit) / 2;
+    const vt = canvas.viewportTransform.slice();
+    vt[4] = offsetX; vt[5] = offsetY;
+    canvas.setViewportTransform(vt);
+    canvas.renderAll();
+  }
+
+  function resetZoom() { applyZoom(1.0, new fabric.Point(0, 0));
+    const vt = canvas.viewportTransform.slice();
+    vt[4] = 16; vt[5] = 16;
+    canvas.setViewportTransform(vt);
+    canvas.renderAll();
+  }
+
+  // Mouse-wheel zoom around cursor
+  canvas.on('mouse:wheel', (opt) => {
+    const e = opt.e;
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY;
+    const factor = delta > 0 ? 0.92 : 1.08;
+    const newZoom = userZoom * factor;
+    applyZoom(newZoom, new fabric.Point(e.offsetX, e.offsetY));
+  });
+
+  // Drag-to-pan on background. We intercept mouse:down/move/up and translate
+  // the viewportTransform; selection is disabled so this never fights with shapes.
+  let panning = false, panStart = null;
+  canvas.on('mouse:down', (opt) => {
+    panning = true;
+    panStart = { x: opt.e.clientX, y: opt.e.clientY };
+    wrap.classList.add('panning');
+  });
+  canvas.on('mouse:move', (opt) => {
+    if (!panning || !panStart) return;
+    const dx = opt.e.clientX - panStart.x;
+    const dy = opt.e.clientY - panStart.y;
+    panStart = { x: opt.e.clientX, y: opt.e.clientY };
+    const vt = canvas.viewportTransform.slice();
+    vt[4] += dx; vt[5] += dy;
+    canvas.setViewportTransform(vt);
+  });
+  canvas.on('mouse:up', () => {
+    panning = false; panStart = null;
+    wrap.classList.remove('panning');
+  });
+
+  // Keyboard: F = fit
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (e.key === 'f' || e.key === 'F') { fitToScreen(); }
+  });
 
   // ===== Scenario presets =====
   const PRESETS = {
@@ -172,8 +282,7 @@
     generate();
   }
 
-  // Load current scenario from server and auto-render.
-  // Claude (or later the AI parser) writes to scenario_current.json; refresh to see it.
+  // Load current scenario from server and auto-render
   fetch('/scenario')
     .then(r => r.text())
     .then(txt => {
@@ -183,9 +292,36 @@
 
   function px(inches) { return inches * PX; }
 
+  // Build a small filled triangle pointing from (fx,fy) → (tx,ty), placed
+  // at the (tx,ty) endpoint. Used for line arrowheads.
+  function makeArrowhead(fx, fy, tx, ty, stroke, sw) {
+    const px2 = (n) => n * PX;
+    const dx = px2(tx - fx), dy = px2(ty - fy);
+    const ang = Math.atan2(dy, dx);
+    const SIZE = Math.max(8, (sw || 1) * 5);
+    return new fabric.Triangle({
+      left: px2(tx),
+      top: px2(ty),
+      width: SIZE,
+      height: SIZE,
+      fill: stroke || '#5C5F6B',
+      angle: (ang * 180 / Math.PI) + 90,
+      originX: 'center',
+      originY: 'center',
+      selectable: false, evented: false,
+      hoverCursor: 'grab',
+    });
+  }
+
   function renderShapes(data) {
     canvas.clear();
     canvas.setBackgroundColor(data.background, () => {});
+
+    // Update content bbox so fit-to-screen knows the full extent
+    contentInches = {
+      w: data.content_w || 13.33,
+      h: data.content_h || 7.5,
+    };
 
     const imagePromises = [];
 
@@ -199,7 +335,8 @@
           fill: s.fill || 'transparent',
           stroke: s.stroke || null,
           strokeWidth: s.stroke ? (s.sw || 1) : 0,
-          selectable: true, hasControls: true
+          selectable: false, evented: false,
+          hoverCursor: 'grab',
         });
         if (s.gradient) {
           rectShape.set('fill', new fabric.Gradient({
@@ -222,11 +359,10 @@
           fontFamily: 'Arial',
           fontWeight: s.bold ? 'bold' : 'normal',
           textAlign: s.align || 'left',
-          selectable: true, hasControls: true,
-          editable: true
+          selectable: false, evented: false,
+          editable: false,
+          hoverCursor: 'grab',
         });
-        // Use Fabric's originY to anchor text vertically — more reliable
-        // than computing from tb.height (which includes line-box padding).
         if (s.valign === 'middle') {
           tb.set({ originY: 'center', top: px(s.y) + px(s.h) / 2 });
         } else if (s.valign === 'bottom') {
@@ -243,7 +379,8 @@
           fill: s.fill || 'transparent',
           stroke: s.stroke || null,
           strokeWidth: s.stroke ? (s.sw || 1) : 0,
-          selectable: true
+          selectable: false, evented: false,
+          hoverCursor: 'grab',
         });
         canvas.add(el);
         if (s.text) {
@@ -254,7 +391,8 @@
             fill: s.text_color || '#FFFFFF',
             fontFamily: 'Arial', fontWeight: 'bold',
             originX: 'center', originY: 'center',
-            selectable: true
+            selectable: false, evented: false,
+            hoverCursor: 'grab',
           }));
         }
 
@@ -266,10 +404,19 @@
             strokeWidth: s.sw || 1,
             strokeDashArray: s.dash === 'dash' ? [6, 4]
                              : s.dash === 'dot' ? [2, 3] : null,
-            selectable: true
+            selectable: false, evented: false,
+            hoverCursor: 'grab',
           }
         );
         canvas.add(ln);
+        // Arrowhead(s): triangle pointing along line direction at endpoint.
+        const arrow = s.arrow;
+        if (arrow === 'end' || arrow === 'both') {
+          canvas.add(makeArrowhead(s.x1, s.y1, s.x2, s.y2, s.stroke, s.sw));
+        }
+        if (arrow === 'start' || arrow === 'both') {
+          canvas.add(makeArrowhead(s.x2, s.y2, s.x1, s.y1, s.stroke, s.sw));
+        }
 
       } else if (s.type === 'image') {
         const url = '/assets/' + s.src;
@@ -280,7 +427,8 @@
                 left: px(s.x), top: px(s.y),
                 scaleX: px(s.w) / img.width,
                 scaleY: px(s.h) / img.height,
-                selectable: true
+                selectable: false, evented: false,
+                hoverCursor: 'grab',
               });
               canvas.add(img);
             }
@@ -291,7 +439,10 @@
       }
     });
 
-    Promise.all(imagePromises).then(() => canvas.renderAll());
+    Promise.all(imagePromises).then(() => {
+      canvas.renderAll();
+      fitToScreen();
+    });
   }
 
   async function generate() {
@@ -306,7 +457,7 @@
       });
       const data = await res.json();
       renderShapes(data);
-      status.textContent = `${data.detail_level} detail — ${data.shapes.length} shapes`;
+      status.textContent = `${data.shapes.length} shapes — ${contentInches.w.toFixed(1)}" × ${contentInches.h.toFixed(1)}"`;
     } catch(e) {
       status.textContent = 'Error: ' + e.message;
       console.error(e);
@@ -333,8 +484,8 @@
     }
   }
 
-  // Auto-generate on load
-  generate();
+  // Auto-size canvas on load
+  resizeCanvas();
 </script>
 </body>
 </html>

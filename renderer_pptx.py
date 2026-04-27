@@ -86,6 +86,22 @@ def draw(slide, s):
             conn.line.dash_style = MSO_LINE_DASH_STYLE.DASH
         elif dash == 'dot':
             conn.line.dash_style = MSO_LINE_DASH_STYLE.ROUND_DOT
+        # Arrowheads — set tailEnd / headEnd on the connector's <a:ln>
+        arrow = s.get('arrow')
+        if arrow:
+            ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+            spPr = conn.line._get_or_add_ln()
+            for end_tag, flag in (('tailEnd', arrow in ('end', 'both')),
+                                  ('headEnd', arrow in ('start', 'both'))):
+                if not flag:
+                    continue
+                # Remove any existing same-tag end markers
+                for el in spPr.findall(f'{{{ns}}}{end_tag}'):
+                    spPr.remove(el)
+                end_el = etree.SubElement(spPr, f'{{{ns}}}{end_tag}')
+                end_el.set('type', 'triangle')
+                end_el.set('w', 'med')
+                end_el.set('len', 'med')
         return
 
     x, y, w, h = Inches(s['x']), Inches(s['y']), Inches(s['w']), Inches(s['h'])
@@ -154,6 +170,36 @@ def draw(slide, s):
             slide.shapes.add_picture(img_path, x, y, w, h)
 
 
+SLIDE_PAD = 0.2  # extra inch padding inside the slide before content
+
+
+def _scale_shapes(shapes, scale, ox, oy):
+    """Return new shape dicts with all coordinates scaled by `scale` and
+    translated by (ox, oy). Lines have x1/y1/x2/y2; everything else has
+    x/y/w/h. Used to fit a wide canvas onto a 13.33×7.5 slide."""
+    out = []
+    for s in shapes:
+        n = dict(s)
+        if s['type'] == 'line':
+            n['x1'] = s['x1'] * scale + ox
+            n['y1'] = s['y1'] * scale + oy
+            n['x2'] = s['x2'] * scale + ox
+            n['y2'] = s['y2'] * scale + oy
+        else:
+            n['x'] = s.get('x', 0) * scale + ox
+            n['y'] = s.get('y', 0) * scale + oy
+            n['w'] = s.get('w', 0) * scale
+            n['h'] = s.get('h', 0) * scale
+            if 'fs' in s:
+                n['fs'] = max(4, s['fs'] * scale)  # shrink font with content
+            if 'radius' in s:
+                n['radius'] = s.get('radius', 0) * scale
+            if 'sw' in s:
+                n['sw'] = max(0.25, s['sw'] * scale)
+        out.append(n)
+    return out
+
+
 def render_pptx(layout_data, output_path):
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W)
@@ -162,7 +208,22 @@ def render_pptx(layout_data, output_path):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, layout_data['background'])
 
-    for s in layout_data['shapes']:
+    # Fit-to-slide: scale uniformly so the diagram's content_w × content_h
+    # fits inside (SLIDE_W - 2*SLIDE_PAD) × (SLIDE_H - 2*SLIDE_PAD), then
+    # center the result. If content already fits, scale = 1.0 (untouched).
+    content_w = layout_data.get('content_w', SLIDE_W)
+    content_h = layout_data.get('content_h', SLIDE_H)
+    avail_w = SLIDE_W - 2 * SLIDE_PAD
+    avail_h = SLIDE_H - 2 * SLIDE_PAD
+    scale = min(avail_w / content_w, avail_h / content_h, 1.0)
+    final_w = content_w * scale
+    final_h = content_h * scale
+    ox = (SLIDE_W - final_w) / 2
+    oy = (SLIDE_H - final_h) / 2
+
+    shapes = (layout_data['shapes'] if scale == 1.0
+              else _scale_shapes(layout_data['shapes'], scale, ox, oy))
+    for s in shapes:
         draw(slide, s)
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)

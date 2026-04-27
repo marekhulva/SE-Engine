@@ -3,11 +3,11 @@ Component base class.
 
 Every component implements:
   - preferred_size() -> (w, h) in inches  : its natural visual size
-  - min_size()       -> (w, h) in inches  : smallest it can shrink to
   - render(x, y, w, h) -> [shape dicts]   : draw itself into the given box
 
 Shapes returned are plain dicts consumed by both the canvas (Fabric.js)
-and PPTX renderers. Coordinates are in inches.
+and PPTX renderers. Coordinates are in inches; the canvas is infinite, so
+components render at preferred_size() and never get squeezed.
 """
 
 
@@ -15,22 +15,8 @@ class Component:
     def preferred_size(self):
         raise NotImplementedError(f'{type(self).__name__}.preferred_size()')
 
-    def min_size(self):
-        return self.preferred_size()
-
     def render(self, x, y, w, h):
         raise NotImplementedError(f'{type(self).__name__}.render()')
-
-    def variants(self):
-        """Density variants this component supports.
-
-        Returns: [(name, width, height), ...] in inches, sorted from richest
-        to leanest. Default = single 'full' variant matching preferred_size().
-        Components with multiple density modes (see PLAN.md "Future: Multi-Site
-        Density Layouts") override this to declare reduced/compact/tile sizes.
-        """
-        w, h = self.preferred_size()
-        return [('full', w, h)]
 
 
 # ----- Shape helpers (inches in, dict out) -----
@@ -72,9 +58,13 @@ def image(x, y, w, h, src):
             'src': src}
 
 
-def line(x1, y1, x2, y2, stroke='#5C5F6B', sw=1, dash='dash'):
-    """Line between two points. dash = 'solid' | 'dash' | 'dot'."""
+def line(x1, y1, x2, y2, stroke='#5C5F6B', sw=1, dash='dash', arrow=None):
+    """Line between two points. dash = 'solid' | 'dash' | 'dot'.
+    arrow = None | 'end' | 'start' | 'both' — adds a triangle marker
+    pointing along the line direction. Arrows render in both the
+    Fabric.js canvas and the PPTX export."""
     return {'type': 'line',
             'x1': round(x1, 4), 'y1': round(y1, 4),
             'x2': round(x2, 4), 'y2': round(y2, 4),
-            'stroke': stroke, 'sw': sw, 'dash': dash}
+            'stroke': stroke, 'sw': sw, 'dash': dash,
+            'arrow': arrow}

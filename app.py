@@ -41,4 +41,6 @@ def output(filename):
         mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5050, host='0.0.0.0')
+    # SE Engine runs on 5051; ArchGramMVP keeps 5050 so both can run side-by-side.
+    # Avoiding 5060 (Firefox/Chrome block it as the SIP port).
+    app.run(debug=True, port=5051, host='0.0.0.0')

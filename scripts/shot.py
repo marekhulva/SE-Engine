@@ -14,7 +14,7 @@ with sync_playwright() as p:
     # Canvas is 1280 wide and the page has a sidebar to its left — need
     # enough viewport to fit both so Chromium doesn't shrink the canvas.
     page = browser.new_page(viewport={'width': 1900, 'height': 900})
-    page.goto('http://localhost:5050/', wait_until='networkidle')
+    page.goto('http://localhost:5051/', wait_until='networkidle')
     page.wait_for_timeout(800)  # let async image loads finish
     canvas = page.locator('#c')
     canvas.scroll_into_view_if_needed()

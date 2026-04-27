@@ -27,7 +27,6 @@ class SaaSSite(Component):
     CHILD_GAP = 0.10
     CALLOUT_GAP = 0.08
     CONTAINER_RADIUS = 0.08
-    MAX_WIDTH = 4.0
 
     def __init__(self, name, apps=None, is_commvault=True, callout=None, **_extra):
         self.name = name
@@ -61,18 +60,12 @@ class SaaSSite(Component):
 
     def preferred_size(self):
         inner_w, inner_h = self._inner.preferred_size()
-        w = min(inner_w + self.INNER_PAD * 2, self.MAX_WIDTH)
+        w = inner_w + self.INNER_PAD * 2
         h = (self.LABEL_BLOCK_H + self.LABEL_GAP
              + inner_h + self.INNER_PAD * 2)
         if self.callout is not None:
             _, ch = self.callout.preferred_size()
             h += self.CALLOUT_GAP + ch
-        return (w, h)
-
-    def min_size(self):
-        inner_w, _ = self._inner.min_size()
-        w = inner_w + self.INNER_PAD * 2
-        _, h = self.preferred_size()
         return (w, h)
 
     def render(self, x, y, w, h):

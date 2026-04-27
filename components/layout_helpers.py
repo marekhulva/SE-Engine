@@ -1,8 +1,9 @@
 """
 Layout primitives — VStack and HStack.
 
-These compose other components by stacking them. They handle sizing
-(asking children for preferred sizes and summing them) and centering.
+These compose other components by stacking them. Children always render
+at their preferred size; on an infinite canvas there's no need to shrink
+to fit a budget.
 """
 from .base import Component
 
@@ -19,14 +20,6 @@ class VStack(Component):
         if not self.children:
             return (0, 0)
         sizes = [c.preferred_size() for c in self.children]
-        w = max(s[0] for s in sizes)
-        h = sum(s[1] for s in sizes) + self.gap * (len(sizes) - 1)
-        return (w, h)
-
-    def min_size(self):
-        if not self.children:
-            return (0, 0)
-        sizes = [c.min_size() for c in self.children]
         w = max(s[0] for s in sizes)
         h = sum(s[1] for s in sizes) + self.gap * (len(sizes) - 1)
         return (w, h)
@@ -65,47 +58,12 @@ class HStack(Component):
         h = max(s[1] for s in sizes)
         return (w, h)
 
-    def min_size(self):
-        """Sum of child minimums so HStack inherits shrink headroom from
-        shrinkable children (e.g., BackupSoftwareStack can shrink 20%
-        while MediaAgent stays at preferred)."""
-        if not self.children:
-            return (0, 0)
-        sizes = [c.min_size() for c in self.children]
-        w = sum(s[0] for s in sizes) + self.gap * (len(sizes) - 1)
-        h = max(s[1] for s in sizes)
-        return (w, h)
-
     def render(self, x, y, w, h):
-        """Render children left-to-right. If preferred widths overflow `w`,
-        shrink children proportionally (using min_size as the floor, then
-        uniform sub-min scaling as last resort) so the row stays inside
-        the parent — Command Server + Media Agent must NEVER spill outside
-        the site container box, even when the site is horizontally shrunk
-        by the layout engine."""
         if not self.children:
             return []
+        sizes = [c.preferred_size() for c in self.children]
+        total_w = sum(cw for cw, _ in sizes) + self.gap * (len(self.children) - 1)
 
-        prefs = [c.preferred_size() for c in self.children]
-        mins = [c.min_size() for c in self.children]
-        total_gap = self.gap * (len(self.children) - 1)
-        budget = w - total_gap
-
-        pref_sum = sum(pw for pw, _ in prefs)
-        min_sum = sum(mw for mw, _ in mins)
-
-        if pref_sum <= budget:
-            sizes = prefs
-        elif min_sum <= budget:
-            slack = pref_sum - min_sum
-            headroom = budget - min_sum
-            sizes = [(mw + (pw - mw) * (headroom / slack), ph)
-                     for (pw, ph), (mw, _) in zip(prefs, mins)]
-        else:
-            ratio = budget / min_sum if min_sum > 0 else 1.0
-            sizes = [(mw * ratio, mh) for (mw, mh) in mins]
-
-        total_w = sum(cw for cw, _ in sizes) + total_gap
         if self.align == 'center':
             cx = x + (w - total_w) / 2
         elif self.align == 'right':

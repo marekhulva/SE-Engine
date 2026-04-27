@@ -31,11 +31,6 @@ class OnPremSite(Component):
     CHILD_GAP = 0.10
     CALLOUT_GAP = 0.08
     CONTAINER_RADIUS = 0.08
-    # Site width is capped so no single DC can dominate a multi-site layout.
-    # Cap is generous enough to fit a Command Center card plus a couple of
-    # Media Agent indicators side-by-side; wider multi-site scenarios will
-    # shrink proportionally in the layout engine.
-    MAX_WIDTH = 4.0
 
     def __init__(self, name, workloads=None, vm_count=100, storage_tb=10,
                  backup_software='commvault', backup_target='hsx',
@@ -108,22 +103,12 @@ class OnPremSite(Component):
 
     def preferred_size(self):
         inner_w, inner_h = self._inner.preferred_size()
-        w = min(inner_w + self.INNER_PAD * 2, self.MAX_WIDTH)
+        w = inner_w + self.INNER_PAD * 2
         h = (self.LABEL_BLOCK_H + self.LABEL_GAP
              + inner_h + self.INNER_PAD * 2)
         if self.callout is not None:
             _, ch = self.callout.preferred_size()
             h += self.CALLOUT_GAP + ch
-        return (w, h)
-
-    def min_size(self):
-        """Smallest site width that still renders cleanly — driven by the
-        atomic minimums of inner children (e.g., chip tiles, Command
-        Center card). Height stays at preferred; the packer only shrinks
-        horizontally."""
-        inner_w, _ = self._inner.min_size()
-        w = inner_w + self.INNER_PAD * 2
-        _, h = self.preferred_size()
         return (w, h)
 
     def render(self, x, y, w, h):
