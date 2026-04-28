@@ -303,7 +303,7 @@ def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available
     Returns list of shapes and the bounding box (x, y, w, h).
     """
     shapes = []
-    LINE_GAP = 0.20
+    LINE_GAP = 0.55
     ROW_GAP  = 0.12
 
     cloud_lookup = {c.get('cloud_provider', '').lower(): c for c in agp_configs}
@@ -352,12 +352,36 @@ def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available
             shapes.append(line(cx + card_w, line_y, agp_x, line_y,
                                stroke=COLORS['text_muted'], sw=1.0, dash='dash'))
 
+            # AirGapBreak scaled to match row size, centered on the line
+            from components.agp import AirGapBreak as _AGB
+            _brk = _AGB()
+            _bw, _bh = _brk.preferred_size()
+            _bs = s * 0.85  # slightly smaller than row scale
+            _scaled_bw = _bw * _bs
+            _scaled_bh = _bh * _bs
+            mid_x = cx + card_w + LINE_GAP / 2
+            _brk_x = mid_x - _scaled_bw / 2
+            _brk_y = line_y - _brk.LINE_Y_FROM_TOP * _bs
+            # Render bolt, wall, label scaled
             from components.base import image as _img
             from components.tokens import IMAGES
-            bolt_w, bolt_h = 0.09 * s, 0.20 * s
-            mid_x = cx + card_w + LINE_GAP / 2
-            shapes.append(_img(mid_x - bolt_w / 2, line_y - bolt_h - 0.01,
-                               bolt_w, bolt_h, IMAGES['agp_bolt']))
+            _bolt_w = _brk.BOLT_W * _bs
+            _bolt_h = _brk.BOLT_H * _bs
+            _wall_s = _brk.WALL_SIZE * _bs
+            _label_h = _brk.LABEL_H * _bs
+            _label_gap = _brk.LABEL_GAP * _bs
+            _bolt_gap = _brk.BOLT_GAP * _bs
+            shapes.append(_img(mid_x - _bolt_w / 2, _brk_y,
+                               _bolt_w, _bolt_h, IMAGES['agp_bolt']))
+            _wall_y = _brk_y + _bolt_h + _bolt_gap
+            shapes.append(_img(mid_x - _wall_s / 2, _wall_y,
+                               _wall_s, _wall_s, IMAGES['agp_firewall']))
+            from components.base import text as _txt
+            shapes.append(_txt(mid_x - _scaled_bw / 2, _wall_y + _wall_s + _label_gap,
+                               _scaled_bw, _label_h, '"Airgap"',
+                               fs=max(5, round(7 * _bs)),
+                               color=COLORS['text_primary'],
+                               align='center', valign='middle'))
 
             shapes.extend(agp_card.render(agp_x, cy, agp_w, row_h))
             max_right = max(max_right, agp_x + agp_w)
@@ -444,26 +468,40 @@ def generate_layout(scenario):
         max_site_badge = min(len(onprem_site_ids), 2) if len(onprem_site_ids) > 1 else 1
         agp_badge_num = str(max_site_badge + 1)
 
-    # On-prem AGP — placed first so its position is known before SaaS is sized.
+    # SaaS app paired rows + AGP placement are co-dependent:
+    # SaaS renders at preferred size; AGP is pushed down only if its natural
+    # position would leave SaaS too little room. Neither is hardcoded.
+    saas_start_y = MARGIN_TOP + 0.1 + unity_reserve
+    agp_min_y = None
+
+    if saas_app_data and rects and agp_config:
+        # How much vertical space does SaaS need at preferred size?
+        _card_probe = SaaSAppCard('_p')
+        _agp_probe  = SaaSAGPCard()
+        _row_h = max(_card_probe.preferred_size()[1], _agp_probe.preferred_size()[1])
+        _n = len(saas_app_data)
+        saas_preferred_h = _n * _row_h + (_n - 1) * 0.12
+        agp_min_y = saas_start_y + saas_preferred_h + 0.20
+
     if agp_config and sites:
         shapes.extend(_place_agp(agp_config, sites, rects,
-                                 unity_reserve, badge_num=agp_badge_num))
+                                 unity_reserve, badge_num=agp_badge_num,
+                                 min_y=agp_min_y))
 
-    # SaaS app paired rows — sized to fill the space the AGP zone doesn't use.
-    # AGP never moves; SaaS shrinks to fit whatever vertical space is available
-    # between the on-prem site tops and the AGP zone top.
     if saas_app_data:
-        saas_start_y = MARGIN_TOP + 0.1 + unity_reserve
         if rects and agp_config:
             agp_x, agp_top_y = _agp_xy(agp_config, sites, rects)
-            saas_start_x = agp_x
-            available_h = max(0.5, agp_top_y - saas_start_y - 0.15)
+            effective_agp_y = max(agp_top_y, agp_min_y) if agp_min_y else agp_top_y
+            # Preference: align SaaS left edge with the AGP cloud cards (after
+            # the AirGapBreak), not the far-left of the full AGP zone.
+            saas_start_x = AGPZone(agp_config).cloud_entry_x(agp_x)
+            available_h = max(0.5, effective_agp_y - saas_start_y - 0.15)
         elif rects:
             saas_start_x = max(r[0] + r[2] for r in rects) + SITE_GAP
-            available_h = None
+            available_h  = None
         else:
             saas_start_x = MARGIN_LEFT
-            available_h = None
+            available_h  = None
         saas_shapes, _ = _place_saas_app_rows(
             saas_app_data, agp_configs, saas_start_x, saas_start_y,
             available_h=available_h)
@@ -589,7 +627,7 @@ def _agp_xy(config, sites, site_rects):
     return x, y
 
 
-def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None):
+def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None):
     """Position the AGP zone.
 
     Placement rule:
@@ -646,6 +684,8 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None)
         else:
             y = (site_rects[0][1] if site_rects
                  else MARGIN_TOP + 0.1 + y_offset)
+        if min_y is not None:
+            y = max(y, min_y)
 
     target_x = zone.cloud_entry_x(x)
     target_y = zone.cloud_entry_y(y)

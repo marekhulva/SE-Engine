@@ -22,6 +22,9 @@ DISPLAY_NAME = {
     'google workspace': 'G Workspace',
     'gsuite': 'G Workspace',
     'g suite': 'G Workspace',
+    'active directory': 'AD/Entra ID',
+    'azure ad': 'AD/Entra ID',
+    'entra id': 'AD/Entra ID',
 }
 
 
@@ -84,7 +87,7 @@ class SaaSAppCard(Component):
         label_w = min(w * 0.85, 2.0)
         label_x = x + (w - label_w) / 2
         shapes.append(text(label_x, y, label_w, label_h,
-                           self.app_name, fs=max(7, round(10 * s)),
+                           self.app_name, fs=max(6, round(8 * s)),
                            color=COLORS['text_primary'],
                            bold=True, align='center'))
         shapes.append(rect(label_x, y + label_h,

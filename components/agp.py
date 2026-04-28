@@ -274,7 +274,7 @@ class AGPZone(Component):
     both cards when present."""
     BREAK_GAP = 0.10
     SIBLING_GAP = 0.14     # horizontal gap between sibling AGP cards
-    CLEANROOM_GAP = 0.50   # wider gap between AGP group and Cleanroom
+    CLEANROOM_GAP = 0.25   # wider gap between AGP group and Cleanroom
     CALLOUT_GAP = 0.10
     CALLOUT_H = 0.28
 
@@ -379,8 +379,9 @@ class AGPZone(Component):
             # Vertical dashed divider centered in the gap, aligned with the
             # cards vertically (matches card top/bottom for a clean read).
             divider_x = agps_right + self.CLEANROOM_GAP / 2
-            shapes.append(line(divider_x, y,
-                               divider_x, y + cards_h,
+            divider_inset = cards_h * 0.10
+            shapes.append(line(divider_x, y + divider_inset,
+                               divider_x, y + cards_h - divider_inset,
                                stroke=COLORS['text_muted'], sw=1.0,
                                dash='dash'))
             shapes.extend(self.cleanroom.render(cr_x, y, cw_, ch_))
