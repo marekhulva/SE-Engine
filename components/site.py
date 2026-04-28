@@ -23,13 +23,16 @@ from .callout import Callout
 
 
 class OnPremSite(Component):
-    LABEL_H = 0.24
+    priority = 1          # critical — last to shrink
+    placement = 'anchor'  # natural position: packed left-to-right at top
+
+    LABEL_H = 0.22
     UNDERLINE_H = 0.03
     LABEL_BLOCK_H = LABEL_H + UNDERLINE_H
-    LABEL_GAP = 0.06
-    INNER_PAD = 0.14       # > CONTAINER_RADIUS so children clear rounded corners
-    CHILD_GAP = 0.10
-    CALLOUT_GAP = 0.08
+    LABEL_GAP = 0.04
+    INNER_PAD = 0.10       # > CONTAINER_RADIUS so children clear rounded corners
+    CHILD_GAP = 0.07
+    CALLOUT_GAP = 0.05
     CONTAINER_RADIUS = 0.08
 
     def __init__(self, name, workloads=None, vm_count=100, storage_tb=10,

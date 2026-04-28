@@ -33,11 +33,11 @@ def make_target(kind, **kwargs):
 
 class ProtectedDataLayer(Component):
     BOX_RADIUS = 0.08
-    BOX_PAD = 0.07
-    GAP_AFTER_HEADER = 0.08
-    GAP_AFTER_TARGET = 0.08
-    RETENTION_H = 0.16
-    RETENTION_GAP = 0.04
+    BOX_PAD = 0.05
+    GAP_AFTER_HEADER = 0.04
+    GAP_AFTER_TARGET = 0.04
+    RETENTION_H = 0.13
+    RETENTION_GAP = 0.02
 
     def __init__(self, target_kind='hsx', is_commvault=True,
                  hsx_nodes=3, hsx_tb=150, retention_days=None):

@@ -12,10 +12,10 @@ from .tokens import COLORS, GRADIENTS
 
 class HSXTable(Component):
     W = 1.25
-    STRIP_H = 0.22
-    STRIP_GAP = 0.03
-    LABEL_H = 0.22
-    LABEL_GAP = 0.06
+    STRIP_H = 0.18
+    STRIP_GAP = 0.02
+    LABEL_H = 0.18
+    LABEL_GAP = 0.04
     RADIUS = 0.05
     U_COL_W = 0.30  # width reserved for "2U" badge
 

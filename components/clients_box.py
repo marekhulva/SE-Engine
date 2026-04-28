@@ -18,11 +18,11 @@ from .workload_chip import WorkloadChip
 
 class ClientsAndStorage(Component):
     BOX_RADIUS = 0.08
-    BOX_PAD = 0.07
-    GAP_AFTER_HEADER = 0.08
-    GAP_AFTER_CHIPS = 0.08
-    GAP_BETWEEN_CHIP_ROWS = 0.06
-    SUMMARY_H = 0.22
+    BOX_PAD = 0.05
+    GAP_AFTER_HEADER = 0.05
+    GAP_AFTER_CHIPS = 0.05
+    GAP_BETWEEN_CHIP_ROWS = 0.04
+    SUMMARY_H = 0.18
     CHIP_GAP = SPACE['xs']
     # Cap chips per row. >MAX_PER_ROW workloads wrap to a second row so the
     # sub-zone width stays bounded regardless of how many workload types

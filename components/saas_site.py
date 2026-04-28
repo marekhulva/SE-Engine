@@ -19,6 +19,9 @@ from .callout import Callout
 
 
 class SaaSSite(Component):
+    priority = 2          # grouped SaaS card behaves like a small site
+    placement = 'anchor'
+
     LABEL_H = 0.24
     UNDERLINE_H = 0.03
     LABEL_BLOCK_H = LABEL_H + UNDERLINE_H

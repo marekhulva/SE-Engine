@@ -37,6 +37,9 @@ def _resolve_icon(app_name):
 
 
 class SaaSAppCard(Component):
+    priority = 3          # supplementary — shrinks before AGP and on-prem
+    placement = 'fill'    # sized to available space, not anchored
+
     # Preferred (unscaled) dimensions — render scales these to fit given h
     LABEL_H = 0.18
     UNDERLINE_H = 0.02

@@ -4,8 +4,8 @@ from .tokens import COLORS
 
 
 class ProtectionStatus(Component):
-    CHIP_H = 0.16
-    CHIP_GAP = 0.02
+    CHIP_H = 0.14
+    CHIP_GAP = 0.01
     PAD_X = 0.07
     RADIUS = 0.04
 

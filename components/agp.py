@@ -272,6 +272,9 @@ class AGPZone(Component):
     Cleanroom card placed SIDE-BY-SIDE next to it. Each cloud block is
     its own individually-outlined card. Callout bar spans underneath
     both cards when present."""
+    priority = 2          # important — shrinks only if SaaS isn't enough
+    placement = 'anchor'  # natural position aligned to on-prem storage layer
+
     BREAK_GAP = 0.10
     SIBLING_GAP = 0.14     # horizontal gap between sibling AGP cards
     CLEANROOM_GAP = 0.25   # wider gap between AGP group and Cleanroom

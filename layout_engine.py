@@ -258,8 +258,19 @@ def _route_orthogonal(routed, rect_by_id, site_by_id=None):
         frac = (pos + 1) / (len(lst) + 1)
         return (x + w * frac, y + h)
 
+    # Clear the callout bar that sits below each site container.
+    # site rect = container only; callouts add CALLOUT_GAP (~0.05) + callout_h (~0.28).
     max_bottom = max(y + h for (x, y, w, h) in rect_by_id.values())
-    LANE_BASE = max_bottom + 0.55
+    callout_clearance = 0.0
+    if site_by_id:
+        for s in site_by_id.values():
+            if s is None: continue
+            cb = getattr(s, 'callout', None)
+            if cb is not None:
+                _, ch = cb.preferred_size()
+                callout_clearance = max(callout_clearance,
+                                        getattr(s, 'CALLOUT_GAP', 0.05) + ch + 0.10)
+    LANE_BASE = max_bottom + max(0.55, callout_clearance + 0.35)
     LANE_GAP = 0.28
 
     shapes = []
@@ -468,43 +479,25 @@ def generate_layout(scenario):
         max_site_badge = min(len(onprem_site_ids), 2) if len(onprem_site_ids) > 1 else 1
         agp_badge_num = str(max_site_badge + 1)
 
-    # SaaS app paired rows + AGP placement are co-dependent:
-    # SaaS renders at preferred size; AGP is pushed down only if its natural
-    # position would leave SaaS too little room. Neither is hardcoded.
+    # AGP placed first (anchor priority=2). SaaS app cards (priority=3,
+    # placement=fill) shrink to fit whatever space the strategy assigns.
     saas_start_y = MARGIN_TOP + 0.1 + unity_reserve
-    agp_min_y = None
-
-    if saas_app_data and rects and agp_config:
-        # How much vertical space does SaaS need at preferred size?
-        _card_probe = SaaSAppCard('_p')
-        _agp_probe  = SaaSAGPCard()
-        _row_h = max(_card_probe.preferred_size()[1], _agp_probe.preferred_size()[1])
-        _n = len(saas_app_data)
-        saas_preferred_h = _n * _row_h + (_n - 1) * 0.12
-        agp_min_y = saas_start_y + saas_preferred_h + 0.20
 
     if agp_config and sites:
         shapes.extend(_place_agp(agp_config, sites, rects,
-                                 unity_reserve, badge_num=agp_badge_num,
-                                 min_y=agp_min_y))
+                                 unity_reserve, badge_num=agp_badge_num))
 
     if saas_app_data:
-        if rects and agp_config:
-            agp_x, agp_top_y = _agp_xy(agp_config, sites, rects)
-            effective_agp_y = max(agp_top_y, agp_min_y) if agp_min_y else agp_top_y
-            # Preference: align SaaS left edge with the AGP cloud cards (after
-            # the AirGapBreak), not the far-left of the full AGP zone.
-            saas_start_x = AGPZone(agp_config).cloud_entry_x(agp_x)
-            available_h = max(0.5, effective_agp_y - saas_start_y - 0.15)
-        elif rects:
-            saas_start_x = max(r[0] + r[2] for r in rects) + SITE_GAP
-            available_h  = None
-        else:
-            saas_start_x = MARGIN_LEFT
-            available_h  = None
+        from placement_strategy import saas_app_placement
+        spot = saas_app_placement(
+            saas_app_data, sites, rects, agp_config,
+            site_top_y=saas_start_y,
+            margin_left=MARGIN_LEFT,
+            fallback_gap=SITE_GAP,
+        )
         saas_shapes, _ = _place_saas_app_rows(
-            saas_app_data, agp_configs, saas_start_x, saas_start_y,
-            available_h=available_h)
+            saas_app_data, agp_configs, spot['x'], spot['y'],
+            available_h=spot['available_h'])
         shapes.extend(saas_shapes)
 
     # Copy badges: one per on-prem site, just outside the container's right
@@ -533,21 +526,45 @@ def generate_layout(scenario):
             by = mcy - BADGE_SIZE / 2
             shapes.extend(_copy_badge(bx, by, badge_num))
 
-    # Center the Unity card horizontally over the full content extent
-    # (sites + AGP). Computed here so it spans the actual diagram width,
-    # not a fixed slide width.
+    # Compute content bounding box excluding the title (which spans full
+    # width by convention). If actual content is narrower than slide width,
+    # shift everything except the title rightward to center it visually.
+    SLIDE_W = 13.33
+    title_shape = shapes[0]
+    body_shapes = shapes[1:]
+    body_max_x = 0.0
+    body_min_x = MARGIN_LEFT
+    for s in body_shapes:
+        if s['type'] == 'line':
+            body_max_x = max(body_max_x, s['x1'], s['x2'])
+            body_min_x = min(body_min_x, s['x1'], s['x2'])
+        else:
+            body_max_x = max(body_max_x, s.get('x', 0) + s.get('w', 0))
+            body_min_x = min(body_min_x, s.get('x', 0))
+    body_w = body_max_x - body_min_x
+    if body_w > 0 and body_w < SLIDE_W - 0.4:
+        target_left = (SLIDE_W - body_w) / 2
+        shift = target_left - body_min_x
+        if shift > 0.05:
+            for s in body_shapes:
+                if s['type'] == 'line':
+                    s['x1'] += shift
+                    s['x2'] += shift
+                else:
+                    s['x'] = s.get('x', 0) + shift
+
+    # Center the Unity card horizontally over the full (post-shift) content.
     if unity_card is not None:
         content_w_so_far, _ = _content_bbox(shapes)
         uw, uh = unity_card.preferred_size()
         ux = max(MARGIN_LEFT, (content_w_so_far - uw) / 2)
         uy = MARGIN_TOP - 0.05
-        # Insert Unity right after the title so it sits behind/above sites
         shapes = shapes[:1] + list(unity_card.render(ux, uy, uw, uh)) + shapes[1:]
 
     content_w, content_h = _content_bbox(shapes)
     return {
         'background': COLORS['bg'],
-        'content_w': round(content_w + MARGIN_LEFT, 4),  # mirror left margin as right padding
+        'content_w': round(content_w + MARGIN_LEFT, 4),
         'content_h': round(content_h + 0.3, 4),
         'shapes': shapes,
     }

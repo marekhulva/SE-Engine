@@ -12,8 +12,27 @@ components render at preferred_size() and never get squeezed.
 
 
 class Component:
+    # Layout metadata used by the placement engine. Subclasses override
+    # to declare their importance and how they should be placed.
+    #
+    # priority: 1 (critical, never shrunk) ... 5 (optional, shrinks first).
+    #   Used by the (future) constraint solver to decide who shrinks when
+    #   the diagram doesn't fit. Today this is metadata only.
+    #
+    # placement: 'anchor' | 'fill' | 'free'
+    #   - 'anchor': fixed natural position (sites, AGP zone)
+    #   - 'fill':   sized to fit available space (SaaS app cards)
+    #   - 'free':   layout engine decides based on context (Unity card)
+    priority = 1
+    placement = 'anchor'
+
     def preferred_size(self):
         raise NotImplementedError(f'{type(self).__name__}.preferred_size()')
+
+    def min_size(self):
+        """Smallest size at which the component is still readable.
+        Default is preferred_size — components that can shrink override."""
+        return self.preferred_size()
 
     def render(self, x, y, w, h):
         raise NotImplementedError(f'{type(self).__name__}.render()')
