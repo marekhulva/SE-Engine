@@ -1,0 +1,16 @@
+{
+  "title": "Showcase B — Single Small Site (Auto-Centered)",
+  "sites": [
+    {
+      "id": "hq",
+      "name": "Corporate HQ",
+      "workloads": ["VMs", "Databases"],
+      "vm_count": 35,
+      "storage_tb": 8,
+      "backup_target": "hsx",
+      "hsx_nodes": 2,
+      "hsx_tb": 60,
+      "retention_days": 30
+    }
+  ]
+}

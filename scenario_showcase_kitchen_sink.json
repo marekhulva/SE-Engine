@@ -1,0 +1,43 @@
+{
+  "title": "Showcase E — Hybrid Kitchen Sink (Everything Together)",
+  "sites": [
+    {
+      "id": "primary",
+      "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Systems"],
+      "vm_count": 250,
+      "storage_tb": 120,
+      "backup_target": "hsx",
+      "hsx_nodes": 4,
+      "hsx_tb": 200,
+      "retention_days": 30
+    },
+    {
+      "id": "dr",
+      "name": "DR Site",
+      "workloads": ["VMs", "Databases", "File Systems"],
+      "vm_count": 250,
+      "storage_tb": 120,
+      "backup_target": "pure",
+      "retention_days": 14,
+      "media_agents": 2
+    },
+    {"id": "m365",      "type": "saas_app", "app": "M365",             "cloud": "azure"},
+    {"id": "salesforce","type": "saas_app", "app": "Salesforce",       "cloud": "azure"},
+    {"id": "gworkspace","type": "saas_app", "app": "Google Workspace", "cloud": "gcp"}
+  ],
+  "connections": [
+    {"from": "primary", "to": "dr", "speed": "Replication"}
+  ],
+  "agps": [
+    {
+      "cloud_provider": "azure",
+      "tier": "Cool Tier",
+      "capacity_tb": 500,
+      "retention_days": 365,
+      "callout": "Primary + DR + Azure SaaS to Air Gap",
+      "cleanroom": {"tenant": "Customer Tenant", "capacity_tb": 100}
+    },
+    {"cloud_provider": "gcp", "tier": "Cool Tier", "capacity_tb": 60, "retention_days": 180}
+  ]
+}

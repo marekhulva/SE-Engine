@@ -1,0 +1,21 @@
+{
+  "title": "Showcase D — 4-Site Replication Mesh (Bus Lane Routing)",
+  "sites": [
+    {"id": "east",  "name": "East DC",  "workloads": ["VMs", "Databases"],            "vm_count": 200, "storage_tb": 60, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
+    {"id": "central","name":"Central DC","workloads": ["VMs", "Files"],                "vm_count": 150, "storage_tb": 45, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
+    {"id": "west",  "name": "West DC",  "workloads": ["VMs", "Databases", "Files"],   "vm_count": 180, "storage_tb": 55, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
+    {"id": "dr",    "name": "DR Site",  "workloads": ["VMs", "Databases", "Files"],   "vm_count": 120, "storage_tb": 40, "backup_target": "pure", "retention_days": 14, "media_agents": 2}
+  ],
+  "connections": [
+    {"from": "east",    "to": "dr", "speed": "Replication"},
+    {"from": "central", "to": "dr", "speed": "Replication"},
+    {"from": "west",    "to": "dr", "speed": "Replication"}
+  ],
+  "agp": {
+    "cloud_provider": "azure",
+    "tier": "Cool Tier",
+    "capacity_tb": 400,
+    "retention_days": 365,
+    "callout": "All Sites to Air Gap"
+  }
+}

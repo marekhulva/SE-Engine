@@ -1,0 +1,10 @@
+{
+  "title": "Showcase A — 5 Branch Offices in One Row (Density Win)",
+  "sites": [
+    {"id": "boston", "name": "Boston Branch", "workloads": ["VMs", "Databases"], "vm_count": 60, "storage_tb": 12, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
+    {"id": "chicago", "name": "Chicago Branch", "workloads": ["VMs", "Files"], "vm_count": 90, "storage_tb": 18, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
+    {"id": "denver", "name": "Denver Branch", "workloads": ["VMs", "Databases", "Files"], "vm_count": 75, "storage_tb": 15, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
+    {"id": "atlanta", "name": "Atlanta Branch", "workloads": ["VMs", "Databases"], "vm_count": 110, "storage_tb": 22, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
+    {"id": "phoenix", "name": "Phoenix Branch", "workloads": ["VMs", "Files"], "vm_count": 50, "storage_tb": 10, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14}
+  ]
+}

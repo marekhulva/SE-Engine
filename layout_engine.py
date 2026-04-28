@@ -304,18 +304,19 @@ def _content_bbox(shapes):
     return max_x, max_y
 
 
-def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available_h=None):
+def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y,
+                         available_h=None, n_cols=1):
     """Lay out saas_app cards as paired rows: [AppCard] --line--> [AGPCard].
 
-    When available_h is given, row heights are computed dynamically so all
-    rows fill the available vertical space exactly. When None, rows render
-    at their natural preferred size.
+    Strategy decides positioning AND column count based on negative space.
+    This function just renders into the geometry it's given.
 
     Returns list of shapes and the bounding box (x, y, w, h).
     """
     shapes = []
     LINE_GAP = 0.55
     ROW_GAP  = 0.12
+    COL_GAP  = 0.30
 
     cloud_lookup = {c.get('cloud_provider', '').lower(): c for c in agp_configs}
 
@@ -324,23 +325,28 @@ def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available
     agp_probe  = SaaSAGPCard()
     preferred_row_h = max(card_probe.preferred_size()[1], agp_probe.preferred_size()[1])
 
+    n_cols = max(1, min(n_cols, n))
+    rows_per_col = (n + n_cols - 1) // n_cols
+
     if available_h is not None and n > 0:
-        target = (available_h - ROW_GAP * (n - 1)) / n
-        row_h = min(target, preferred_row_h)  # never grow beyond preferred
-        row_h = max(row_h, 0.45)              # hard minimum for visibility
+        target = (available_h - ROW_GAP * (rows_per_col - 1)) / rows_per_col
+        row_h = min(target, preferred_row_h)
+        row_h = max(row_h, 0.45)
     else:
         row_h = preferred_row_h
 
-    # Scale factor drives card widths and bolt icon size
     s = row_h / preferred_row_h if preferred_row_h > 0 else 1.0
     card_w = card_probe.CARD_W * s
     agp_w  = agp_probe.CARD_W  * s
+    col_w  = card_w + LINE_GAP + agp_w
 
-    cx = start_x
-    cy = start_y
     max_right = start_x
 
-    for d in saas_app_data:
+    for idx, d in enumerate(saas_app_data):
+        col = idx // rows_per_col
+        row = idx %  rows_per_col
+        cx = start_x + col * (col_w + COL_GAP)
+        cy = start_y + row * (row_h + ROW_GAP)
         app_card = SaaSAppCard.from_dict(d)
         cloud    = (d.get('cloud') or d.get('agp_cloud') or '').lower()
         agp_cfg  = cloud_lookup.get(cloud) if cloud else None
@@ -411,9 +417,7 @@ def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available
         else:
             max_right = max(max_right, cx + card_w)
 
-        cy += row_h + ROW_GAP
-
-    total_h = cy - start_y - ROW_GAP
+    total_h = rows_per_col * row_h + (rows_per_col - 1) * ROW_GAP
     return shapes, (start_x, start_y, max_right - start_x, total_h)
 
 
@@ -497,7 +501,8 @@ def generate_layout(scenario):
         )
         saas_shapes, _ = _place_saas_app_rows(
             saas_app_data, agp_configs, spot['x'], spot['y'],
-            available_h=spot['available_h'])
+            available_h=spot['available_h'],
+            n_cols=spot.get('n_cols', 1))
         shapes.extend(saas_shapes)
 
     # Copy badges: one per on-prem site, just outside the container's right
