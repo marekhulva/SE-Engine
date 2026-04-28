@@ -1,0 +1,34 @@
+{
+  "title": "SaaS Multi-Cloud — M365 → Azure AGP, Google Workspace → GCP AGP",
+  "unity": true,
+  "sites": [
+    {
+      "id": "m365",
+      "type": "saas_app",
+      "app": "M365",
+      "cloud": "azure"
+    },
+    {
+      "id": "gws",
+      "type": "saas_app",
+      "app": "Google Workspace",
+      "cloud": "gcp"
+    }
+  ],
+  "agps": [
+    {
+      "cloud_provider": "azure",
+      "tier": "Cool Tier",
+      "capacity_tb": 100,
+      "retention_days": 180,
+      "callout": "M365 Backups to Azure Air Gap"
+    },
+    {
+      "cloud_provider": "gcp",
+      "tier": "Cool Tier",
+      "capacity_tb": 80,
+      "retention_days": 180,
+      "callout": "Google Workspace to GCP Air Gap"
+    }
+  ]
+}

@@ -18,12 +18,15 @@ from .tokens import COLORS
 from .header_bar import HeaderBar
 from .hsx_table import HSXTable
 from .pure_target import PureStorageTarget
+from .netapp_target import NetAppTarget
 from .status_label import ProtectionStatus
 
 
 def make_target(kind, **kwargs):
     if kind == 'pure':
         return PureStorageTarget()
+    if kind == 'netapp':
+        return NetAppTarget()
     return HSXTable(nodes=kwargs.get('nodes', 3),
                     total_tb=kwargs.get('total_tb', 150))
 

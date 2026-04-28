@@ -43,6 +43,8 @@ class OnPremSite(Component):
         # needs N standalone Media Agent indicators sitting to the right
         # of the Command Center card. Parser should ask the user how
         # many MAs — default 1 when non-HSX, 0 when HSX.
+        no_local_storage = backup_target in (None, 'none', 'cloud')
+
         if backup_target == 'hsx':
             ma_count = 0
         elif media_agents is None:
@@ -64,7 +66,8 @@ class OnPremSite(Component):
             ProtectedDataLayer(target_kind=backup_target,
                                is_commvault=self.is_commvault,
                                hsx_nodes=hsx_nodes, hsx_tb=hsx_tb,
-                               retention_days=retention_days),
+                               retention_days=retention_days)
+            if not no_local_storage else None,
         ]
         self._inner = VStack([c for c in children if c], gap=self.CHILD_GAP, align='stretch')
 

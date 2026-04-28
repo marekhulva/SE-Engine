@@ -78,6 +78,10 @@
     <button class="btn btn-preset" onclick="loadPreset('vegas')">Vegas / Reno / LA</button>
     <button class="btn btn-preset" onclick="loadRandom4()">4 Sites (Random)</button>
     <button class="btn btn-preset" onclick="loadPreset('stress')">Stress (8+6)</button>
+    <button class="btn btn-preset" onclick="loadPreset('vegas_sd_sanjose')">Vegas + SD → San Jose DR</button>
+    <button class="btn btn-preset" onclick="loadPreset('cloudonly')">Direct to Air Gap</button>
+    <button class="btn btn-preset" onclick="loadPreset('netapp_agp')">Primary+NetApp+AGP</button>
+    <button class="btn btn-preset" onclick="loadPreset('saas_multicloud')">SaaS Multi-Cloud</button>
   </div>
   <span id="status">Ready</span>
 </header>
@@ -235,6 +239,71 @@
         {"name": "LA DC", "workloads": ["VMs", "Database", "Files", "Applications"],
          "vm_count": 180, "storage_tb": 28, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150}
       ]
+    },
+    netapp_agp: {
+      "title": "Primary DC → Secondary (NetApp) → AGP Azure + Cleanroom",
+      "unity": true,
+      "sites": [
+        {"id": "primary", "name": "Primary DC", "workloads": ["VMware", "SQL", "File Systems"],
+         "vm_count": 180, "storage_tb": 100, "backup_software": "commvault", "backup_target": "hsx",
+         "hsx_nodes": 4, "hsx_tb": 200, "retention_days": 30},
+        {"id": "secondary", "name": "Secondary Site", "workloads": ["VMware", "SQL", "File Systems"],
+         "vm_count": 180, "storage_tb": 100, "backup_software": "commvault", "backup_target": "netapp",
+         "media_agents": 2, "retention_days": 14},
+        {"id": "salesforce", "type": "saas_app", "app": "Salesforce", "cloud": "azure"},
+        {"id": "gws", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"},
+        {"id": "ad", "type": "saas_app", "app": "Active Directory", "cloud": "azure"}
+      ],
+      "connections": [{"from": "primary", "to": "secondary", "speed": "10 GbE"}],
+      "agps": [
+        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 300, "retention_days": 180,
+         "callout": "Primary DC Backups to Air Gap", "cleanroom": {"tenant": "Customer Tenant", "capacity_tb": 80}},
+        {"cloud_provider": "gcp", "tier": "Cool Tier", "capacity_tb": 50, "retention_days": 180,
+         "callout": "G Workspace to GCP Air Gap"}
+      ]
+    },
+    saas_multicloud: {
+      "title": "SaaS Multi-Cloud — M365 → Azure AGP, Google Workspace → GCP AGP",
+      "unity": true,
+      "sites": [
+        {"id": "m365", "type": "saas_app", "app": "M365", "cloud": "azure"},
+        {"id": "gws", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"}
+      ],
+      "agps": [
+        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 100, "retention_days": 180, "callout": "M365 Backups to Azure Air Gap"},
+        {"cloud_provider": "gcp", "tier": "Cool Tier", "capacity_tb": 80, "retention_days": 180, "callout": "Google Workspace to GCP Air Gap"}
+      ]
+    },
+    cloudonly: {
+      "title": "Cloud-First Backup — Direct to Air Gap",
+      "sites": [
+        {"id": "main", "name": "Main Site", "workloads": ["Active Directory", "Databases", "VMs"],
+         "vm_count": 40, "storage_tb": 9, "backup_software": "commvault",
+         "backup_target": "none", "media_agents": 1}
+      ],
+      "agp": {
+        "cloud_provider": "azure", "tier": "Infrequent Access", "capacity_tb": 50,
+        "retention_days": 90, "callout": "All Backups Direct to Air Gap"
+      }
+    },
+    vegas_sd_sanjose: {
+      "title": "Multi-Site — Vegas + San Diego → DR San Jose + Air Gap",
+      "sites": [
+        {"id": "vegas", "name": "Las Vegas DC", "workloads": ["VMs", "Databases", "Applications"],
+         "vm_count": 280, "storage_tb": 96, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 200, "retention_days": 30},
+        {"id": "san_diego", "name": "San Diego DC", "workloads": ["VMs", "File Systems", "Databases"],
+         "vm_count": 210, "storage_tb": 72, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 6, "hsx_tb": 300, "retention_days": 30},
+        {"id": "san_jose", "name": "San Jose DR", "workloads": ["VMs", "Databases", "File Systems"],
+         "vm_count": 120, "storage_tb": 48, "backup_software": "commvault", "backup_target": "pure", "retention_days": 14, "media_agents": 2}
+      ],
+      "connections": [
+        {"from": "vegas", "to": "san_jose", "speed": "Replication"},
+        {"from": "san_diego", "to": "san_jose", "speed": "Replication"}
+      ],
+      "agp": {
+        "cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 500,
+        "retention_days": 365, "callout": "Vegas & San Diego Backups to Air Gap"
+      }
     },
     stress: {
       "title": "Future State — LA stress test (8 workloads, 6 HSX nodes)",

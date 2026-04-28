@@ -1,0 +1,51 @@
+{
+  "title": "Multi-Site — Vegas + San Diego → DR San Jose + Air Gap",
+  "sites": [
+    {
+      "id": "vegas",
+      "name": "Las Vegas DC",
+      "workloads": ["VMs", "Databases", "Applications"],
+      "vm_count": 280,
+      "storage_tb": 96,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 3,
+      "hsx_tb": 200,
+      "retention_days": 30
+    },
+    {
+      "id": "san_diego",
+      "name": "San Diego DC",
+      "workloads": ["VMs", "File Systems", "Databases"],
+      "vm_count": 210,
+      "storage_tb": 72,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 6,
+      "hsx_tb": 300,
+      "retention_days": 30
+    },
+    {
+      "id": "san_jose",
+      "name": "San Jose DR",
+      "workloads": ["VMs", "Databases", "File Systems"],
+      "vm_count": 120,
+      "storage_tb": 48,
+      "backup_software": "commvault",
+      "backup_target": "pure",
+      "retention_days": 14,
+      "media_agents": 2
+    }
+  ],
+  "connections": [
+    {"from": "vegas", "to": "san_jose", "speed": "Replication"},
+    {"from": "san_diego", "to": "san_jose", "speed": "Replication"}
+  ],
+  "agp": {
+    "cloud_provider": "azure",
+    "tier": "Cool Tier",
+    "capacity_tb": 500,
+    "retention_days": 365,
+    "callout": "Vegas & San Diego Backups to Air Gap"
+  }
+}

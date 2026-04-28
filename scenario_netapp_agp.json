@@ -1,0 +1,55 @@
+{
+  "title": "Primary DC → Secondary (NetApp) → AGP Azure + Cleanroom",
+  "unity": true,
+  "sites": [
+    {
+      "id": "primary",
+      "name": "Primary DC",
+      "workloads": ["VMware", "SQL", "File Systems"],
+      "vm_count": 180,
+      "storage_tb": 100,
+      "backup_software": "commvault",
+      "backup_target": "hsx",
+      "hsx_nodes": 4,
+      "hsx_tb": 200,
+      "retention_days": 30
+    },
+    {
+      "id": "secondary",
+      "name": "Secondary Site",
+      "workloads": ["VMware", "SQL", "File Systems"],
+      "vm_count": 180,
+      "storage_tb": 100,
+      "backup_software": "commvault",
+      "backup_target": "netapp",
+      "media_agents": 2,
+      "retention_days": 14
+    },
+    {"id": "salesforce", "type": "saas_app", "app": "Salesforce", "cloud": "azure"},
+    {"id": "gws", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"},
+    {"id": "ad", "type": "saas_app", "app": "Active Directory", "cloud": "azure"}
+  ],
+  "connections": [
+    {"from": "primary", "to": "secondary", "speed": "10 GbE"}
+  ],
+  "agps": [
+    {
+      "cloud_provider": "azure",
+      "tier": "Cool Tier",
+      "capacity_tb": 300,
+      "retention_days": 180,
+      "callout": "Primary DC Backups to Air Gap",
+      "cleanroom": {
+        "tenant": "Customer Tenant",
+        "capacity_tb": 80
+      }
+    },
+    {
+      "cloud_provider": "gcp",
+      "tier": "Cool Tier",
+      "capacity_tb": 50,
+      "retention_days": 180,
+      "callout": "G Workspace to GCP Air Gap"
+    }
+  ]
+}

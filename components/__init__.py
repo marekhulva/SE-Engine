@@ -14,6 +14,8 @@ from .callout import Callout
 from .site import OnPremSite
 from .saas_apps import SaaSApplicationsBox
 from .saas_site import SaaSSite
+from .saas_app_card import SaaSAppCard
+from .saas_agp_card import SaaSAGPCard
 from .connection import Connection
 from .agp import AGPZone, AGPBlock, CloudCleanroom, AirGapBreak
 from .unity_card import UnityCard
@@ -25,7 +27,7 @@ __all__ = [
     'WorkloadChip', 'HeaderBar', 'ClientsAndStorage',
     'BackupSoftwareStack', 'HSXTable', 'PureStorageTarget',
     'ProtectedDataLayer', 'ProtectionStatus', 'Callout', 'OnPremSite',
-    'SaaSApplicationsBox', 'SaaSSite',
+    'SaaSApplicationsBox', 'SaaSSite', 'SaaSAppCard',
     'Connection',
     'AGPZone', 'AGPBlock', 'CloudCleanroom', 'AirGapBreak',
     'UnityCard',

@@ -21,7 +21,8 @@ The Fabric.js canvas uses content_w/h to set an initial fit-to-screen zoom.
 The PPTX renderer scales the whole layout to fit a 13.33×7.5 slide.
 """
 import re
-from components import OnPremSite, SaaSSite, Connection, AGPZone, UnityCard, COLORS
+from components import OnPremSite, SaaSSite, SaaSAppCard, Connection, AGPZone, UnityCard, COLORS
+from components.saas_agp_card import SaaSAGPCard
 from components.base import text, line, oval
 from components.connection import Connection as _ConnStyle
 from components.protected_layer import ProtectedDataLayer
@@ -30,7 +31,10 @@ from components.clients_box import ClientsAndStorage
 
 def _build_site(d):
     """Instantiate the right site class for a scenario entry.
-    Default is OnPremSite; `type: 'saas'` switches to SaaSSite."""
+    Default is OnPremSite; `type: 'saas'` switches to SaaSSite;
+    `type: 'saas_app'` builds an individual SaaSAppCard."""
+    if d.get('type') == 'saas_app':
+        return SaaSAppCard.from_dict(d)
     if d.get('type') == 'saas':
         return SaaSSite.from_dict(d)
     return OnPremSite.from_dict(d)
@@ -177,10 +181,11 @@ def _route_adjacent(adjacent, rect_by_id, site_by_id):
 
     def replication_anchor(site_id, side):
         x, y, w, h = rect_by_id[site_id]
-        cy = _clients_layer_center_y(site_by_id.get(site_id),
-                                     y - _label_block_offset(site_by_id.get(site_id)))
+        site = site_by_id.get(site_id)
+        site_y = y - _label_block_offset(site)
+        cy = _clients_layer_center_y(site, site_y)
         if cy is None:
-            cy = y + h * 0.25  # fallback: top-quarter of container
+            cy = y + h * 0.25
         return (x + w if side == 'E' else x, cy)
 
     shapes = []
@@ -192,7 +197,12 @@ def _route_adjacent(adjacent, rect_by_id, site_by_id):
         else:
             x1, y1 = slotted_anchor(a, side_of(a, b), i)
             x2, y2 = slotted_anchor(b, side_of(b, a), i)
-        shapes.extend(Connection(x1, y1, x2, y2, c.get('speed', '')).render())
+        if _is_replication(c):
+            shapes.extend(Connection(x1, y1, x2, y2, c.get('speed', ''),
+                                     stroke=COLORS['purple_primary'],
+                                     sw=2.0, dash='solid').render())
+        else:
+            shapes.extend(Connection(x1, y1, x2, y2, c.get('speed', '')).render())
     return shapes
 
 
@@ -283,13 +293,110 @@ def _content_bbox(shapes):
     return max_x, max_y
 
 
+def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y, available_h=None):
+    """Lay out saas_app cards as paired rows: [AppCard] --line--> [AGPCard].
+
+    When available_h is given, row heights are computed dynamically so all
+    rows fill the available vertical space exactly. When None, rows render
+    at their natural preferred size.
+
+    Returns list of shapes and the bounding box (x, y, w, h).
+    """
+    shapes = []
+    LINE_GAP = 0.20
+    ROW_GAP  = 0.12
+
+    cloud_lookup = {c.get('cloud_provider', '').lower(): c for c in agp_configs}
+
+    n = len(saas_app_data)
+    card_probe = SaaSAppCard('_probe')
+    agp_probe  = SaaSAGPCard()
+    preferred_row_h = max(card_probe.preferred_size()[1], agp_probe.preferred_size()[1])
+
+    if available_h is not None and n > 0:
+        target = (available_h - ROW_GAP * (n - 1)) / n
+        row_h = min(target, preferred_row_h)  # never grow beyond preferred
+        row_h = max(row_h, 0.45)              # hard minimum for visibility
+    else:
+        row_h = preferred_row_h
+
+    # Scale factor drives card widths and bolt icon size
+    s = row_h / preferred_row_h if preferred_row_h > 0 else 1.0
+    card_w = card_probe.CARD_W * s
+    agp_w  = agp_probe.CARD_W  * s
+
+    cx = start_x
+    cy = start_y
+    max_right = start_x
+
+    for d in saas_app_data:
+        app_card = SaaSAppCard.from_dict(d)
+        cloud    = (d.get('cloud') or d.get('agp_cloud') or '').lower()
+        agp_cfg  = cloud_lookup.get(cloud) if cloud else None
+        agp_card = SaaSAGPCard.from_config(agp_cfg) if agp_cfg else None
+        missing_cloud = not cloud and bool(agp_configs)
+
+        shapes.extend(app_card.render(cx, cy, card_w, row_h))
+
+        if agp_card:
+            agp_x = cx + card_w + LINE_GAP
+
+            # Line Y: center of the app icon area
+            line_y = (cy
+                      + (card_probe.LABEL_H + card_probe.UNDERLINE_H + card_probe.LABEL_GAP) * s
+                      + card_probe.INNER_PAD * s
+                      + card_probe.ICON_SIZE * s / 2)
+            agp_line_y = agp_card.line_anchor_y(cy, scale=s)
+            line_y = (line_y + agp_line_y) / 2
+
+            shapes.append(line(cx + card_w, line_y, agp_x, line_y,
+                               stroke=COLORS['text_muted'], sw=1.0, dash='dash'))
+
+            from components.base import image as _img
+            from components.tokens import IMAGES
+            bolt_w, bolt_h = 0.09 * s, 0.20 * s
+            mid_x = cx + card_w + LINE_GAP / 2
+            shapes.append(_img(mid_x - bolt_w / 2, line_y - bolt_h - 0.01,
+                               bolt_w, bolt_h, IMAGES['agp_bolt']))
+
+            shapes.extend(agp_card.render(agp_x, cy, agp_w, row_h))
+            max_right = max(max_right, agp_x + agp_w)
+
+        elif missing_cloud:
+            agp_x  = cx + card_w + LINE_GAP
+            warn_w = 1.2 * s
+            shapes.append(line(cx + card_w, cy + row_h / 2, agp_x, cy + row_h / 2,
+                               stroke=COLORS['negative'], sw=1.0, dash='dash'))
+            from components.base import text as _text
+            shapes.append(_text(agp_x, cy, warn_w, row_h,
+                                '⚠ cloud?', fs=max(7, round(8 * s)),
+                                color=COLORS['negative'],
+                                align='center', valign='middle'))
+            max_right = max(max_right, agp_x + warn_w)
+        else:
+            max_right = max(max_right, cx + card_w)
+
+        cy += row_h + ROW_GAP
+
+    total_h = cy - start_y - ROW_GAP
+    return shapes, (start_x, start_y, max_right - start_x, total_h)
+
+
 def generate_layout(scenario):
     """Main entry point. Returns positioned shapes JSON."""
     sites_data = scenario['sites']
     title = scenario.get('title', f'Future State — {len(sites_data)} Sites')
 
-    sites = [_build_site(d) for d in sites_data]
-    agp_config = scenario.get('agp')
+    # Split saas_app cards from regular sites — they use a different layout
+    saas_app_data = [d for d in sites_data if d.get('type') == 'saas_app']
+    regular_data  = [d for d in sites_data if d.get('type') != 'saas_app']
+
+    sites = [_build_site(d) for d in regular_data]
+    # Support both singular `agp` and plural `agps` array.
+    _agp_single = scenario.get('agp')
+    _agp_list = scenario.get('agps', [])
+    agp_configs = _agp_list if _agp_list else ([_agp_single] if _agp_single else [])
+    agp_config = agp_configs[0] if agp_configs else None  # primary AGP (backward compat)
 
     shapes = [_title_shape(title)]
 
@@ -314,27 +421,78 @@ def generate_layout(scenario):
         c['to'] for c in scenario.get('connections', [])
         if _is_replication(c)
     }
-    has_dr = bool(replication_targets)
-    agp_badge_num = '3' if has_dr else '2'
+    # When explicit replication connections exist, use them to determine primary
+    # vs secondary. Otherwise fall back to positional order: 1st on-prem = "1",
+    # 2nd = "2", etc. (primary DC listed first, DR listed second is the convention).
+    onprem_site_ids = [d.get('id', '') for s, d in zip(sites, regular_data)
+                       if isinstance(s, OnPremSite)]
+    # Sites with no local storage (backup_target None/none/cloud) contribute no
+    # on-prem copy — AGP is copy "1" for them.
+    sites_with_local_storage = [
+        d for s, d in zip(sites, regular_data)
+        if isinstance(s, OnPremSite)
+        and d.get('backup_target') not in (None, 'none', 'cloud')
+    ]
+    has_dr = bool(replication_targets) or len(onprem_site_ids) > 1
+    # AGP badge = one above the highest copy number assigned to on-prem sites.
+    # If no sites have local storage, AGP is the first copy → "1".
+    if not sites_with_local_storage:
+        agp_badge_num = '1'
+    elif replication_targets:
+        agp_badge_num = '3'
+    else:
+        max_site_badge = min(len(onprem_site_ids), 2) if len(onprem_site_ids) > 1 else 1
+        agp_badge_num = str(max_site_badge + 1)
 
-    if agp_config:
-        shapes.extend(_place_agp(agp_config, sites, rects, unity_reserve,
-                                 badge_num=agp_badge_num))
+    # On-prem AGP — placed first so its position is known before SaaS is sized.
+    if agp_config and sites:
+        shapes.extend(_place_agp(agp_config, sites, rects,
+                                 unity_reserve, badge_num=agp_badge_num))
+
+    # SaaS app paired rows — sized to fill the space the AGP zone doesn't use.
+    # AGP never moves; SaaS shrinks to fit whatever vertical space is available
+    # between the on-prem site tops and the AGP zone top.
+    if saas_app_data:
+        saas_start_y = MARGIN_TOP + 0.1 + unity_reserve
+        if rects and agp_config:
+            agp_x, agp_top_y = _agp_xy(agp_config, sites, rects)
+            saas_start_x = agp_x
+            available_h = max(0.5, agp_top_y - saas_start_y - 0.15)
+        elif rects:
+            saas_start_x = max(r[0] + r[2] for r in rects) + SITE_GAP
+            available_h = None
+        else:
+            saas_start_x = MARGIN_LEFT
+            available_h = None
+        saas_shapes, _ = _place_saas_app_rows(
+            saas_app_data, agp_configs, saas_start_x, saas_start_y,
+            available_h=available_h)
+        shapes.extend(saas_shapes)
 
     # Copy badges: one per on-prem site, just outside the container's right
     # wall, vertically centred on the storage media (Protected Data Layer).
+    # Each badge is followed by a short label naming the storage hardware so
+    # the diagram reads "① HSX" / "② Pure" at a glance.
     BADGE_SIZE = 0.30
-    for s, r, d in zip(sites, rects, sites_data):
+    onprem_counter = 0
+    for s, r, d in zip(sites, rects, regular_data):
         if not isinstance(s, OnPremSite):
             continue
         site_id = d.get('id', '')
-        badge_num = '2' if site_id in replication_targets else '1'
+        if replication_targets:
+            badge_num = '2' if site_id in replication_targets else '1'
+        else:
+            # No explicit replication — number by position (1st site = primary)
+            onprem_counter += 1
+            badge_num = str(onprem_counter)
         rx, ry, rw, rh = r
         site_y = ry - s.LABEL_BLOCK_H - s.LABEL_GAP
-        scy = _storage_layer_center_y(s, site_y)
-        if scy is not None:
-            bx = rx + rw + 0.06          # just right of the container wall
-            by = scy - BADGE_SIZE / 2    # centred on storage media
+        mcy = _storage_media_center_y(s, site_y)
+        if mcy is not None:
+            # Right edge of PDL inner area, centred on the storage media element
+            pdl_box_pad = 0.07  # ProtectedDataLayer.BOX_PAD
+            bx = rx + rw - s.INNER_PAD - pdl_box_pad - BADGE_SIZE
+            by = mcy - BADGE_SIZE / 2
             shapes.extend(_copy_badge(bx, by, badge_num))
 
     # Center the Unity card horizontally over the full content extent
@@ -372,6 +530,24 @@ def _storage_layer_center_y(site, site_y):
     return None
 
 
+def _storage_media_center_y(site, site_y):
+    """Absolute Y of the center of the actual storage media element (HSX table
+    or Pure logo) inside the ProtectedDataLayer — more precise than the PDL
+    center since the media sits just below the PDL header."""
+    inner = getattr(site, '_inner', None)
+    if inner is None:
+        return None
+    cy = (site_y + site.LABEL_BLOCK_H + site.LABEL_GAP + site.INNER_PAD)
+    for child in inner.children:
+        ch = child.preferred_size()[1]
+        if isinstance(child, ProtectedDataLayer):
+            header_h = child.header.preferred_size()[1]
+            _, th = child.target.preferred_size()
+            return cy + header_h + child.GAP_AFTER_HEADER + th / 2
+        cy += ch + inner.gap
+    return None
+
+
 def _storage_layer_bottom_y(site, site_y):
     """Absolute Y of the bottom edge of the ProtectedDataLayer box."""
     inner = getattr(site, '_inner', None)
@@ -386,7 +562,34 @@ def _storage_layer_bottom_y(site, site_y):
     return None
 
 
-def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2'):
+def _agp_xy(config, sites, site_rects):
+    """Compute the (x, y) top-left corner of the AGP zone without rendering.
+    Mirrors _place_agp's position logic exactly so callers can measure
+    available space before placing other elements."""
+    zone = AGPZone(config)
+    saas_pairs   = [(s, r) for s, r in zip(sites, site_rects) if isinstance(s, SaaSSite)]
+    onprem_pairs = [(s, r) for s, r in zip(sites, site_rects) if isinstance(s, OnPremSite)]
+
+    if saas_pairs:
+        sx, sy, sw_, sh_ = saas_pairs[0][1]
+        return sx, sy + sh_ + 0.30
+
+    rightmost_x = max(r[0] + r[2] for r in site_rects) if site_rects else MARGIN_LEFT
+    x = rightmost_x + AGP_GAP
+
+    if onprem_pairs:
+        anchor_site, anchor_rect = max(onprem_pairs, key=lambda sr: sr[1][0])
+        site_y = anchor_rect[1] - anchor_site.LABEL_BLOCK_H - anchor_site.LABEL_GAP
+        storage_cy = _storage_layer_center_y(anchor_site, site_y)
+    else:
+        storage_cy = None
+    cloud_offset = zone.cloud_entry_y(0)
+    y = (storage_cy - cloud_offset if storage_cy is not None
+         else (site_rects[0][1] if site_rects else MARGIN_TOP + 0.1))
+    return x, y
+
+
+def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None):
     """Position the AGP zone.
 
     Placement rule:
@@ -425,6 +628,8 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2'):
             rightmost_x = max(r[0] + r[2] for r in site_rects)
         else:
             rightmost_x = MARGIN_LEFT
+        if min_x is not None:
+            rightmost_x = max(rightmost_x, min_x)
         x = rightmost_x + AGP_GAP
 
         if onprem_pairs:

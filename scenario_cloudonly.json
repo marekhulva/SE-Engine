@@ -1,0 +1,22 @@
+{
+  "title": "Cloud-First Backup — Direct to Air Gap",
+  "sites": [
+    {
+      "id": "main",
+      "name": "Main Site",
+      "workloads": ["Active Directory", "Databases", "VMs"],
+      "vm_count": 40,
+      "storage_tb": 9,
+      "backup_software": "commvault",
+      "backup_target": "none",
+      "media_agents": 1
+    }
+  ],
+  "agp": {
+    "cloud_provider": "azure",
+    "tier": "Infrequent Access",
+    "capacity_tb": 50,
+    "retention_days": 90,
+    "callout": "All Backups Direct to Air Gap"
+  }
+}

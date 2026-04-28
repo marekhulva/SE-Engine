@@ -28,14 +28,16 @@ class Connection(Component):
     LABEL_OFFSET = 0.26   # pill rises this far above the line
     CHAR_W = 0.065
 
-    def __init__(self, x1, y1, x2, y2, speed, bus_y=None, arrow=True):
+    def __init__(self, x1, y1, x2, y2, speed, bus_y=None, arrow=True,
+                 stroke=None, sw=None, dash=None):
         self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
         self.speed = speed
         self.bus_y = bus_y
-        # When True, the LAST segment (entering the destination) gets an
-        # arrowhead so direction of data flow is visible. Set False for
-        # symmetric/bidirectional links.
         self.arrow = arrow
+        # Optional style overrides — if None, class defaults are used.
+        self._stroke = stroke or self.STROKE
+        self._sw = sw or self.SW
+        self._dash = dash or 'dash'
 
     def preferred_size(self):
         return (abs(self.x2 - self.x1), abs(self.y2 - self.y1))
@@ -65,41 +67,36 @@ class Connection(Component):
         unless the caller explicitly asks for something else."""
         mid_x = (self.x1 + self.x2) / 2
         end_arrow = 'end' if self.arrow else None
+        sk = dict(stroke=self._stroke, sw=self._sw, dash=self._dash)
         if abs(self.y1 - self.y2) < 1e-4:
             shapes = [line(self.x1, self.y1, self.x2, self.y2,
-                           stroke=self.STROKE, sw=self.SW, dash='dash',
-                           arrow=end_arrow)]
+                           arrow=end_arrow, **sk)]
             label_y = self.y1
         else:
             shapes = [
-                line(self.x1, self.y1, mid_x, self.y1,
-                     stroke=self.STROKE, sw=self.SW, dash='dash'),
-                line(mid_x, self.y1, mid_x, self.y2,
-                     stroke=self.STROKE, sw=self.SW, dash='dash'),
+                line(self.x1, self.y1, mid_x, self.y1, **sk),
+                line(mid_x, self.y1, mid_x, self.y2, **sk),
                 line(mid_x, self.y2, self.x2, self.y2,
-                     stroke=self.STROKE, sw=self.SW, dash='dash',
-                     arrow=end_arrow),
+                     arrow=end_arrow, **sk),
             ]
             label_y = min(self.y1, self.y2)
 
         if self.speed:
             pill_y = label_y - self.LABEL_OFFSET - self.LABEL_H
             shapes.append(line(mid_x, pill_y + self.LABEL_H, mid_x, label_y,
-                               stroke=self.STROKE, sw=0.75, dash='solid'))
+                               stroke=self._stroke, sw=0.75, dash='solid'))
             shapes.extend(self._pill(mid_x, pill_y))
         return shapes
 
     def _render_orthogonal(self):
         # 3 dashed segments: source down to bus, across, back up to target
         end_arrow = 'end' if self.arrow else None
+        sk = dict(stroke=self._stroke, sw=self._sw, dash=self._dash)
         shapes = [
-            line(self.x1, self.y1, self.x1, self.bus_y,
-                 stroke=self.STROKE, sw=self.SW, dash='dash'),
-            line(self.x1, self.bus_y, self.x2, self.bus_y,
-                 stroke=self.STROKE, sw=self.SW, dash='dash'),
+            line(self.x1, self.y1, self.x1, self.bus_y, **sk),
+            line(self.x1, self.bus_y, self.x2, self.bus_y, **sk),
             line(self.x2, self.bus_y, self.x2, self.y2,
-                 stroke=self.STROKE, sw=self.SW, dash='dash',
-                 arrow=end_arrow),
+                 arrow=end_arrow, **sk),
         ]
         if self.speed:
             mid_x = (self.x1 + self.x2) / 2
