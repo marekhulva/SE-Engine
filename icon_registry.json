@@ -1,0 +1,256 @@
+{
+  "_comment": "Icon registry for SEEngine. Each entry maps a canonical concept to a tier (folder), an Iconify name (for sync_icons.py to fetch), and aliases (alternate user-typed labels). The resolver uses this in: exact key -> alias -> semantic fallback -> None (text-only).",
+  "_tiers": ["vendor", "saas", "tech", "cloud", "generic"],
+  "_iconify_api": "https://api.iconify.design/{iconify}.svg",
+  "_format": "svg",
+  "_aws_note": "Cloud service icons live under tier='cloud'. Canonical keys are cloud-prefixed (aws_ec2, azure_blob, gcp_gke) to avoid collisions; aliases let users type the bare service name (ec2, s3). AWS services pulled from logos: and simple-icons: on Iconify. Azure/GCP service-level icons need Microsoft's / Google's official SVG kits dropped into assets/icons/cloud/ manually — Iconify only carries the master Azure/GCP logos.",
+
+  "aws": {
+    "tier": "vendor", "iconify": "logos:aws", "format": "svg",
+    "aliases": ["amazon", "amazon web services"]
+  },
+  "azure": {
+    "tier": "vendor", "iconify": "logos:microsoft-azure", "format": "svg",
+    "aliases": ["microsoft azure"]
+  },
+  "gcp": {
+    "tier": "vendor", "iconify": "logos:google-cloud", "format": "svg",
+    "aliases": ["google cloud", "google cloud platform"]
+  },
+  "vmware": {
+    "tier": "vendor", "iconify": "logos:vmware", "format": "svg",
+    "aliases": ["esxi", "vsphere", "vcenter"]
+  },
+  "netapp": {
+    "tier": "vendor", "iconify": "simple-icons:netapp", "format": "svg",
+    "aliases": ["net app", "ontap"]
+  },
+  "cisco": {
+    "tier": "vendor", "iconify": "simple-icons:cisco", "format": "svg",
+    "aliases": []
+  },
+  "dell": {
+    "tier": "vendor", "iconify": "simple-icons:dell", "format": "svg",
+    "aliases": ["dell emc"]
+  },
+  "hpe": {
+    "tier": "vendor", "iconify": "simple-icons:hp", "format": "svg",
+    "aliases": ["hp enterprise", "hewlett packard enterprise", "hp"]
+  },
+
+  "m365": {
+    "tier": "saas", "iconify": "simple-icons:microsoftoffice", "format": "svg",
+    "aliases": ["office 365", "o365", "microsoft 365", "office365"]
+  },
+  "salesforce": {
+    "tier": "saas", "iconify": "logos:salesforce", "format": "svg",
+    "aliases": ["sfdc"]
+  },
+  "google_workspace": {
+    "tier": "saas", "iconify": "logos:google-workspace", "format": "svg",
+    "aliases": ["g suite", "gsuite", "gws"]
+  },
+  "slack": {
+    "tier": "saas", "iconify": "logos:slack-icon", "format": "svg",
+    "aliases": []
+  },
+  "github": {
+    "tier": "saas", "iconify": "logos:github-icon", "format": "svg",
+    "aliases": ["gh"]
+  },
+  "zoom": {
+    "tier": "saas", "iconify": "logos:zoom", "format": "svg",
+    "aliases": []
+  },
+
+  "kubernetes": {
+    "tier": "tech", "iconify": "logos:kubernetes", "format": "svg",
+    "aliases": ["k8s", "kube"]
+  },
+  "docker": {
+    "tier": "tech", "iconify": "logos:docker-icon", "format": "svg",
+    "aliases": []
+  },
+  "postgres": {
+    "tier": "tech", "iconify": "logos:postgresql", "format": "svg",
+    "aliases": ["postgresql", "psql"]
+  },
+  "mysql": {
+    "tier": "tech", "iconify": "logos:mysql", "format": "svg",
+    "aliases": []
+  },
+  "oracle": {
+    "tier": "tech", "iconify": "simple-icons:oracle", "format": "svg",
+    "aliases": []
+  },
+  "mongodb": {
+    "tier": "tech", "iconify": "logos:mongodb-icon", "format": "svg",
+    "aliases": ["mongo"]
+  },
+  "sap": {
+    "tier": "tech", "iconify": "simple-icons:sap", "format": "svg",
+    "aliases": ["sap hana", "hana", "sap s4"]
+  },
+  "exchange": {
+    "tier": "tech", "iconify": "simple-icons:microsoftexchange", "format": "svg",
+    "aliases": ["ms exchange", "exchange server"]
+  },
+  "redis": {
+    "tier": "tech", "iconify": "logos:redis", "format": "svg",
+    "aliases": []
+  },
+  "kafka": {
+    "tier": "tech", "iconify": "logos:kafka-icon", "format": "svg",
+    "aliases": []
+  },
+
+  "_db_fallback": {
+    "tier": "generic", "iconify": "lucide:database", "format": "svg",
+    "aliases": [],
+    "matches_substrings": ["db", "database", "sql"]
+  },
+  "_files_fallback": {
+    "tier": "generic", "iconify": "lucide:files", "format": "svg",
+    "aliases": [],
+    "matches_substrings": ["file system", "file systems", "filesystem", "file server", "file servers", "files", "file", "nas"]
+  },
+  "_app_fallback": {
+    "tier": "generic", "iconify": "lucide:app-window", "format": "svg",
+    "aliases": [],
+    "matches_substrings": ["app", "service"]
+  },
+  "_server_fallback": {
+    "tier": "generic", "iconify": "lucide:server", "format": "svg",
+    "aliases": [],
+    "matches_substrings": ["server", "host"]
+  },
+  "_network_fallback": {
+    "tier": "generic", "iconify": "lucide:network", "format": "svg",
+    "aliases": [],
+    "matches_substrings": ["network", "lan", "wan"]
+  },
+  "_unknown": {
+    "tier": "generic", "iconify": "lucide:help-circle", "format": "svg",
+    "aliases": []
+  },
+
+  "aws_ec2":             { "tier": "cloud", "iconify": "logos:aws-ec2",            "format": "svg", "aliases": ["ec2", "amazon ec2", "elastic compute"] },
+  "aws_lambda":          { "tier": "cloud", "iconify": "logos:aws-lambda",         "format": "svg", "aliases": ["lambda", "aws lambda"] },
+  "aws_fargate":         { "tier": "cloud", "iconify": "logos:aws-fargate",        "format": "svg", "aliases": ["fargate"] },
+  "aws_ecs":             { "tier": "cloud", "iconify": "logos:aws-ecs",            "format": "svg", "aliases": ["ecs", "elastic container service"] },
+  "aws_eks":             { "tier": "cloud", "iconify": "logos:aws-eks",            "format": "svg", "aliases": ["eks", "elastic kubernetes service"] },
+  "aws_batch":           { "tier": "cloud", "iconify": "logos:aws-batch",          "format": "svg", "aliases": ["aws batch"] },
+  "aws_lightsail":       { "tier": "cloud", "iconify": "logos:aws-lightsail",      "format": "svg", "aliases": ["lightsail"] },
+  "aws_beanstalk":       { "tier": "cloud", "iconify": "logos:aws-elastic-beanstalk", "format": "svg", "aliases": ["beanstalk", "elastic beanstalk"] },
+
+  "aws_s3":              { "tier": "cloud", "iconify": "logos:aws-s3",             "format": "svg", "aliases": ["s3", "amazon s3", "simple storage service", "s3 bucket", "s3 buckets"] },
+  "aws_glacier":         { "tier": "cloud", "iconify": "logos:aws-glacier",        "format": "svg", "aliases": ["glacier", "s3 glacier"] },
+  "aws_backup":          { "tier": "cloud", "iconify": "logos:aws-backup",         "format": "svg", "aliases": ["aws backup"] },
+
+  "aws_rds":             { "tier": "cloud", "iconify": "logos:aws-rds",            "format": "svg", "aliases": ["rds", "amazon rds", "relational database service"] },
+  "aws_aurora":          { "tier": "cloud", "iconify": "logos:aws-aurora",         "format": "svg", "aliases": ["aurora", "amazon aurora"] },
+  "aws_dynamodb":        { "tier": "cloud", "iconify": "logos:aws-dynamodb",       "format": "svg", "aliases": ["dynamodb", "dynamo", "ddb"] },
+  "aws_elasticache":     { "tier": "cloud", "iconify": "logos:aws-elasticache",    "format": "svg", "aliases": ["elasticache"] },
+  "aws_redshift":        { "tier": "cloud", "iconify": "logos:aws-redshift",       "format": "svg", "aliases": ["redshift"] },
+  "aws_documentdb":      { "tier": "cloud", "iconify": "logos:aws-documentdb",     "format": "svg", "aliases": ["documentdb", "docdb"] },
+  "aws_neptune":         { "tier": "cloud", "iconify": "logos:aws-neptune",        "format": "svg", "aliases": ["neptune"] },
+  "aws_timestream":      { "tier": "cloud", "iconify": "logos:aws-timestream",     "format": "svg", "aliases": ["timestream"] },
+
+  "aws_vpc":             { "tier": "cloud", "iconify": "logos:aws-vpc",            "format": "svg", "aliases": ["vpc", "virtual private cloud"] },
+  "aws_route53":         { "tier": "cloud", "iconify": "logos:aws-route53",        "format": "svg", "aliases": ["route 53", "route53", "r53"] },
+  "aws_cloudfront":      { "tier": "cloud", "iconify": "logos:aws-cloudfront",     "format": "svg", "aliases": ["cloudfront", "cf"] },
+  "aws_apigateway":      { "tier": "cloud", "iconify": "logos:aws-api-gateway",    "format": "svg", "aliases": ["api gateway", "apigw", "api-gw"] },
+  "aws_elb":             { "tier": "cloud", "iconify": "logos:aws-elb",            "format": "svg", "aliases": ["elb", "elastic load balancer", "alb", "nlb", "load balancer"] },
+
+  "aws_iam":             { "tier": "cloud", "iconify": "logos:aws-iam",            "format": "svg", "aliases": ["iam", "identity and access management"] },
+  "aws_kms":             { "tier": "cloud", "iconify": "logos:aws-kms",            "format": "svg", "aliases": ["kms", "key management service"] },
+  "aws_secrets_manager": { "tier": "cloud", "iconify": "logos:aws-secrets-manager", "format": "svg", "aliases": ["secrets manager"] },
+  "aws_waf":             { "tier": "cloud", "iconify": "logos:aws-waf",            "format": "svg", "aliases": ["waf"] },
+  "aws_shield":          { "tier": "cloud", "iconify": "logos:aws-shield",         "format": "svg", "aliases": ["aws shield"] },
+  "aws_cognito":         { "tier": "cloud", "iconify": "logos:aws-cognito",        "format": "svg", "aliases": ["cognito"] },
+
+  "aws_kinesis":         { "tier": "cloud", "iconify": "logos:aws-kinesis",        "format": "svg", "aliases": ["kinesis"] },
+  "aws_athena":          { "tier": "cloud", "iconify": "logos:aws-athena",         "format": "svg", "aliases": ["athena"] },
+  "aws_glue":            { "tier": "cloud", "iconify": "logos:aws-glue",           "format": "svg", "aliases": ["glue", "aws glue"] },
+  "aws_quicksight":      { "tier": "cloud", "iconify": "logos:aws-quicksight",     "format": "svg", "aliases": ["quicksight"] },
+
+  "aws_cloudwatch":      { "tier": "cloud", "iconify": "logos:aws-cloudwatch",     "format": "svg", "aliases": ["cloudwatch", "cw"] },
+  "aws_cloudformation":  { "tier": "cloud", "iconify": "logos:aws-cloudformation", "format": "svg", "aliases": ["cloudformation", "cfn"] },
+  "aws_sns":             { "tier": "cloud", "iconify": "logos:aws-sns",            "format": "svg", "aliases": ["sns", "simple notification service"] },
+  "aws_sqs":             { "tier": "cloud", "iconify": "logos:aws-sqs",            "format": "svg", "aliases": ["sqs", "simple queue service"] },
+  "aws_step_functions":  { "tier": "cloud", "iconify": "logos:aws-step-functions", "format": "svg", "aliases": ["step functions", "sfn"] },
+  "aws_codepipeline":    { "tier": "cloud", "iconify": "logos:aws-codepipeline",   "format": "svg", "aliases": ["codepipeline"] },
+  "aws_codebuild":       { "tier": "cloud", "iconify": "logos:aws-codebuild",      "format": "svg", "aliases": ["codebuild"] },
+  "aws_codedeploy":      { "tier": "cloud", "iconify": "logos:aws-codedeploy",     "format": "svg", "aliases": ["codedeploy"] },
+  "aws_config":          { "tier": "cloud", "iconify": "logos:aws-config",         "format": "svg", "aliases": ["aws config"] },
+
+  "azure_vm":             { "tier": "cloud", "format": "png", "aliases": ["azure vm", "azure virtual machine", "vm (azure)"] },
+  "azure_vnet":           { "tier": "cloud", "format": "png", "aliases": ["vnet", "virtual network (azure)"] },
+  "azure_load_balancer":  { "tier": "cloud", "format": "png", "aliases": ["azure load balancer", "azure lb"] },
+  "azure_app_gateway":    { "tier": "cloud", "format": "png", "aliases": ["application gateway", "app gateway", "appgw"] },
+  "azure_front_door":     { "tier": "cloud", "format": "png", "aliases": ["front door", "azure cdn", "azure front door"] },
+  "azure_dns":            { "tier": "cloud", "format": "png", "aliases": ["azure dns", "dns zones"] },
+  "azure_storage":        { "tier": "cloud", "format": "png", "aliases": ["azure storage", "blob storage", "storage account", "blob"] },
+  "azure_disks":          { "tier": "cloud", "format": "png", "aliases": ["azure disk", "managed disk", "managed disks"] },
+  "azure_data_lake":      { "tier": "cloud", "format": "png", "aliases": ["data lake", "azure data lake", "adls"] },
+  "azure_cosmos":         { "tier": "cloud", "format": "png", "aliases": ["cosmos", "cosmos db", "cosmosdb", "azure cosmos"] },
+  "azure_sql":            { "tier": "cloud", "format": "png", "aliases": ["azure sql", "azure sql database"] },
+  "azure_sql_server":     { "tier": "cloud", "format": "png", "aliases": ["sql server (azure)", "azure sql server"] },
+  "azure_sql_managed":    { "tier": "cloud", "format": "png", "aliases": ["sql managed instance", "managed instance", "sql mi"] },
+  "azure_postgres":       { "tier": "cloud", "format": "png", "aliases": ["azure postgres", "azure postgresql", "azure database for postgresql"] },
+  "azure_mysql":          { "tier": "cloud", "format": "png", "aliases": ["azure mysql", "azure database for mysql"] },
+  "azure_synapse":        { "tier": "cloud", "format": "png", "aliases": ["synapse", "azure synapse", "synapse analytics"] },
+  "azure_databricks":     { "tier": "cloud", "format": "png", "aliases": ["databricks", "azure databricks"] },
+  "azure_data_factory":   { "tier": "cloud", "format": "png", "aliases": ["data factory", "adf", "azure data factory"] },
+  "azure_app_service":    { "tier": "cloud", "format": "png", "aliases": ["app service", "web app", "azure web apps"] },
+  "azure_function":       { "tier": "cloud", "format": "png", "aliases": ["azure function", "azure functions", "function app"] },
+  "azure_logic_apps":     { "tier": "cloud", "format": "png", "aliases": ["logic app", "logic apps", "azure logic apps"] },
+  "azure_aks":            { "tier": "cloud", "format": "png", "aliases": ["aks", "azure kubernetes", "azure kubernetes service"] },
+  "azure_aci":            { "tier": "cloud", "format": "png", "aliases": ["aci", "container instance", "container instances", "azure container instances"] },
+  "azure_acr":            { "tier": "cloud", "format": "png", "aliases": ["acr", "container registry (azure)", "azure container registry"] },
+  "azure_apim":           { "tier": "cloud", "format": "png", "aliases": ["apim", "api management"] },
+  "azure_event_hub":      { "tier": "cloud", "format": "png", "aliases": ["event hub", "event hubs"] },
+  "azure_service_bus":    { "tier": "cloud", "format": "png", "aliases": ["service bus", "azure service bus", "asb"] },
+  "azure_key_vault":      { "tier": "cloud", "format": "png", "aliases": ["key vault", "azure key vault", "akv"] },
+  "azure_monitor":        { "tier": "cloud", "format": "png", "aliases": ["azure monitor"] },
+  "azure_app_insights":   { "tier": "cloud", "format": "png", "aliases": ["application insights", "app insights"] },
+  "azure_backup":         { "tier": "cloud", "format": "png", "aliases": ["azure backup", "backup vault"] },
+  "azure_recovery_vault": { "tier": "cloud", "format": "png", "aliases": ["recovery services vault", "recovery vault", "asr"] },
+  "azure_defender":       { "tier": "cloud", "format": "png", "aliases": ["defender for cloud", "microsoft defender for cloud", "ms defender", "azure defender"] },
+  "azure_sentinel":       { "tier": "cloud", "format": "png", "aliases": ["sentinel", "azure sentinel", "microsoft sentinel"] },
+  "azure_resource_groups":{ "tier": "cloud", "format": "png", "aliases": ["resource group", "resource groups"] },
+
+  "gcp_compute_engine":   { "tier": "cloud", "format": "png", "aliases": ["compute engine", "gce", "gcp vm", "gcp compute"] },
+  "gcp_app_engine":       { "tier": "cloud", "format": "png", "aliases": ["app engine", "gae"] },
+  "gcp_cloud_run":        { "tier": "cloud", "format": "png", "aliases": ["cloud run"] },
+  "gcp_cloud_functions":  { "tier": "cloud", "format": "png", "aliases": ["cloud functions", "gcf"] },
+  "gcp_gke":              { "tier": "cloud", "format": "png", "aliases": ["gke", "google kubernetes engine", "kubernetes engine"] },
+  "gcp_anthos":           { "tier": "cloud", "format": "png", "aliases": ["anthos"] },
+  "gcp_cloud_storage":    { "tier": "cloud", "format": "png", "aliases": ["cloud storage", "gcs", "google cloud storage", "gcs bucket", "gcs buckets"] },
+  "gcp_filestore":        { "tier": "cloud", "format": "png", "aliases": ["gcp filestore", "google filestore"] },
+  "gcp_cloud_sql":        { "tier": "cloud", "format": "png", "aliases": ["cloud sql", "gcp sql"] },
+  "gcp_spanner":          { "tier": "cloud", "format": "png", "aliases": ["spanner", "cloud spanner"] },
+  "gcp_bigtable":         { "tier": "cloud", "format": "png", "aliases": ["bigtable", "cloud bigtable"] },
+  "gcp_firestore":        { "tier": "cloud", "format": "png", "aliases": ["firestore", "cloud firestore"] },
+  "gcp_memorystore":      { "tier": "cloud", "format": "png", "aliases": ["memorystore", "cloud memorystore"] },
+  "gcp_bigquery":         { "tier": "cloud", "format": "png", "aliases": ["bigquery", "bq"] },
+  "gcp_dataflow":         { "tier": "cloud", "format": "png", "aliases": ["dataflow (gcp)", "google dataflow"] },
+  "gcp_dataproc":         { "tier": "cloud", "format": "png", "aliases": ["dataproc"] },
+  "gcp_pubsub":           { "tier": "cloud", "format": "png", "aliases": ["pubsub", "pub/sub", "cloud pub/sub", "google pubsub"] },
+  "gcp_looker":           { "tier": "cloud", "format": "png", "aliases": ["looker"] },
+  "gcp_cloud_dns":        { "tier": "cloud", "format": "png", "aliases": ["cloud dns", "gcp dns", "google cloud dns"] },
+  "gcp_cloud_cdn":        { "tier": "cloud", "format": "png", "aliases": ["cloud cdn", "gcp cdn"] },
+  "gcp_load_balancing":   { "tier": "cloud", "format": "png", "aliases": ["cloud load balancing", "gcp load balancer", "google load balancer"] },
+  "gcp_cloud_nat":        { "tier": "cloud", "format": "png", "aliases": ["cloud nat"] },
+  "gcp_cloud_armor":      { "tier": "cloud", "format": "png", "aliases": ["cloud armor"] },
+  "gcp_cloud_interconnect":{ "tier": "cloud", "format": "png", "aliases": ["cloud interconnect", "gcp interconnect"] },
+  "gcp_cloud_router":     { "tier": "cloud", "format": "png", "aliases": ["cloud router"] },
+  "gcp_iam":              { "tier": "cloud", "format": "png", "aliases": ["iam (gcp)", "gcp iam", "google iam", "identity and access management"] },
+  "gcp_kms":              { "tier": "cloud", "format": "png", "aliases": ["cloud kms", "gcp kms", "cloud hsm"] },
+  "gcp_secret_manager":   { "tier": "cloud", "format": "png", "aliases": ["secret manager", "gcp secret manager"] },
+  "gcp_cloud_logging":    { "tier": "cloud", "format": "png", "aliases": ["cloud logging", "stackdriver logging"] },
+  "gcp_cloud_monitoring": { "tier": "cloud", "format": "png", "aliases": ["cloud monitoring", "stackdriver monitoring"] },
+  "gcp_cloud_build":      { "tier": "cloud", "format": "png", "aliases": ["cloud build", "gcb"] },
+  "gcp_artifact_registry":{ "tier": "cloud", "format": "png", "aliases": ["artifact registry", "gcp artifact registry"] },
+  "gcp_container_registry":{"tier": "cloud", "format": "png", "aliases": ["container registry (gcp)", "gcr"] }
+}

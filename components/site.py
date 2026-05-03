@@ -38,7 +38,10 @@ class OnPremSite(Component):
     def __init__(self, name, workloads=None, vm_count=100, storage_tb=10,
                  backup_software='commvault', backup_target='hsx',
                  hsx_nodes=3, hsx_tb=150, retention_days=None,
-                 media_agents=None, callout=None, **_extra):
+                 media_agents=None, callout=None,
+                 ma_badge='MA', ma_label_singular='Media Agent',
+                 ma_label_plural='Media Agents',
+                 **_extra):
         self.name = name
         self.is_commvault = (backup_software == 'commvault')
 
@@ -57,7 +60,10 @@ class OnPremSite(Component):
 
         command_center_row = (
             HStack([BackupSoftwareStack(vendor=backup_software),
-                    MediaAgent(count=ma_count) if ma_count > 0 else None],
+                    MediaAgent(count=ma_count, badge=ma_badge,
+                               label_singular=ma_label_singular,
+                               label_plural=ma_label_plural)
+                    if ma_count > 0 else None],
                    gap=0.10, align='center')
             if self.is_commvault else None
         )

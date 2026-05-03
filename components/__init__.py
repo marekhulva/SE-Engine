@@ -12,6 +12,7 @@ from .protected_layer import ProtectedDataLayer
 from .status_label import ProtectionStatus
 from .callout import Callout
 from .site import OnPremSite
+from .cloud_site import CloudSite
 from .saas_apps import SaaSApplicationsBox
 from .saas_site import SaaSSite
 from .saas_app_card import SaaSAppCard
@@ -26,7 +27,7 @@ __all__ = [
     'VStack', 'HStack',
     'WorkloadChip', 'HeaderBar', 'ClientsAndStorage',
     'BackupSoftwareStack', 'HSXTable', 'PureStorageTarget',
-    'ProtectedDataLayer', 'ProtectionStatus', 'Callout', 'OnPremSite',
+    'ProtectedDataLayer', 'ProtectionStatus', 'Callout', 'OnPremSite', 'CloudSite',
     'SaaSApplicationsBox', 'SaaSSite', 'SaaSAppCard',
     'Connection',
     'AGPZone', 'AGPBlock', 'CloudCleanroom', 'AirGapBreak',

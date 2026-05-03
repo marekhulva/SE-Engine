@@ -20,7 +20,7 @@
     .btn-download:hover { background: #2a2a2a; }
     .btn-preset { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; font-weight: normal; }
     .btn-preset:hover { background: #383838; color: #fff; }
-    .preset-group { display: flex; gap: 6px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #333; }
+    .preset-group { display: flex; gap: 6px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #333; flex-wrap: wrap; }
     .preset-group label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; align-self: center; margin-right: 4px; }
     #status { font-size: 12px; color: #666; margin-left: auto; }
 
@@ -73,21 +73,23 @@
   <button class="btn btn-download" onclick="downloadPptx()">&#8595; Print to PDF</button>
   <div class="preset-group">
     <label>Showcase:</label>
-    <button class="btn btn-preset" onclick="loadPreset('showcase_density')">A · 5 Branches (Density)</button>
-    <button class="btn btn-preset" onclick="loadPreset('showcase_tiny')">B · Tiny (Auto-Centered)</button>
-    <button class="btn btn-preset" onclick="loadPreset('showcase_saas_mix')">C · 5 SaaS / 3 Clouds</button>
+    <button class="btn btn-preset" onclick="loadPreset('showcase_density')">A · 5 Branches</button>
+    <button class="btn btn-preset" onclick="loadPreset('showcase_tiny')">B · Tiny</button>
+    <button class="btn btn-preset" onclick="loadPreset('showcase_saas_mix')">C · SaaS / 3 Clouds</button>
     <button class="btn btn-preset" onclick="loadPreset('showcase_replication_mesh')">D · Replication Mesh</button>
     <button class="btn btn-preset" onclick="loadPreset('showcase_kitchen_sink')">E · Kitchen Sink</button>
   </div>
   <div class="preset-group">
     <label>Legacy:</label>
-    <button class="btn btn-preset" onclick="loadPreset('one')">1 Site</button>
-    <button class="btn btn-preset" onclick="loadRandom4()">4 Random</button>
+    <button class="btn btn-preset" onclick="loadPreset('1site')">1 Site</button>
+    <button class="btn btn-preset" onclick="loadPreset('2sites')">2 Sites</button>
+    <button class="btn btn-preset" onclick="loadPreset('3sites')">3 Sites</button>
+    <button class="btn btn-preset" onclick="loadPreset('4sites')">4 Sites</button>
     <button class="btn btn-preset" onclick="loadPreset('stress')">Stress</button>
     <button class="btn btn-preset" onclick="loadPreset('vegas_sd_sanjose')">Vegas/SD→SJ</button>
     <button class="btn btn-preset" onclick="loadPreset('cloudonly')">Direct-to-AGP</button>
     <button class="btn btn-preset" onclick="loadPreset('netapp_agp')">NetApp+AGP</button>
-    <button class="btn btn-preset" onclick="loadPreset('saas_multicloud')">SaaS 2-Cloud</button>
+    <button class="btn btn-preset" onclick="loadPreset('saas_multicloud')">SaaS Multi-Cloud</button>
   </div>
   <span id="status">Ready</span>
 </header>
@@ -214,215 +216,18 @@
     if (e.key === 'f' || e.key === 'F') { fitToScreen(); }
   });
 
-  // ===== Scenario presets =====
-  const PRESETS = {
-    one: {
-      "title": "Future State — Primary DC",
-      "sites": [{
-        "name": "Primary DC",
-        "workloads": ["VMs", "Database", "Files", "Applications"],
-        "vm_count": 320, "storage_tb": 52,
-        "backup_software": "commvault", "backup_target": "hsx",
-        "hsx_nodes": 3, "hsx_tb": 150
-      }]
-    },
-    two: {
-      "title": "Future State — 2 Sites",
-      "sites": [
-        {"name": "Primary DC", "workloads": ["VMs", "Database", "Files", "Applications"],
-         "vm_count": 320, "storage_tb": 52, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
-        {"name": "DR Site", "workloads": ["VMs", "Files"],
-         "vm_count": 180, "storage_tb": 28, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150}
-      ]
-    },
-    vegas: {
-      "title": "Future State — Vegas / Reno / LA",
-      "sites": [
-        {"name": "Vegas DC (Primary)", "workloads": ["VMs", "Database", "Files", "Applications"],
-         "vm_count": 420, "storage_tb": 68, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
-        {"name": "Reno DC", "workloads": ["VMs"],
-         "vm_count": 210, "storage_tb": 34, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
-        {"name": "LA DC", "workloads": ["VMs", "Database", "Files", "Applications"],
-         "vm_count": 180, "storage_tb": 28, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150}
-      ]
-    },
-    netapp_agp: {
-      "title": "Primary DC → Secondary (NetApp) → AGP Azure + Cleanroom",
-      "unity": true,
-      "sites": [
-        {"id": "primary", "name": "Primary DC", "workloads": ["VMware", "SQL", "File Systems"],
-         "vm_count": 180, "storage_tb": 100, "backup_software": "commvault", "backup_target": "hsx",
-         "hsx_nodes": 4, "hsx_tb": 200, "retention_days": 30},
-        {"id": "secondary", "name": "Secondary Site", "workloads": ["VMware", "SQL", "File Systems"],
-         "vm_count": 180, "storage_tb": 100, "backup_software": "commvault", "backup_target": "netapp",
-         "media_agents": 2, "retention_days": 14},
-        {"id": "salesforce", "type": "saas_app", "app": "Salesforce", "cloud": "azure"},
-        {"id": "gws", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"},
-        {"id": "ad", "type": "saas_app", "app": "Active Directory", "cloud": "azure"}
-      ],
-      "connections": [{"from": "primary", "to": "secondary", "speed": "10 GbE"}],
-      "agps": [
-        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 300, "retention_days": 180,
-         "callout": "Primary DC Backups to Air Gap", "cleanroom": {"tenant": "Customer Tenant", "capacity_tb": 80}},
-        {"cloud_provider": "gcp", "tier": "Cool Tier", "capacity_tb": 50, "retention_days": 180,
-         "callout": "G Workspace to GCP Air Gap"}
-      ]
-    },
-    saas_multicloud: {
-      "title": "SaaS Multi-Cloud — M365 → Azure AGP, Google Workspace → GCP AGP",
-      "unity": true,
-      "sites": [
-        {"id": "m365", "type": "saas_app", "app": "M365", "cloud": "azure"},
-        {"id": "gws", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"}
-      ],
-      "agps": [
-        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 100, "retention_days": 180, "callout": "M365 Backups to Azure Air Gap"},
-        {"cloud_provider": "gcp", "tier": "Cool Tier", "capacity_tb": 80, "retention_days": 180, "callout": "Google Workspace to GCP Air Gap"}
-      ]
-    },
-    cloudonly: {
-      "title": "Cloud-First Backup — Direct to Air Gap",
-      "sites": [
-        {"id": "main", "name": "Main Site", "workloads": ["Active Directory", "Databases", "VMs"],
-         "vm_count": 40, "storage_tb": 9, "backup_software": "commvault",
-         "backup_target": "none", "media_agents": 1}
-      ],
-      "agp": {
-        "cloud_provider": "azure", "tier": "Infrequent Access", "capacity_tb": 50,
-        "retention_days": 90, "callout": "All Backups Direct to Air Gap"
-      }
-    },
-    vegas_sd_sanjose: {
-      "title": "Multi-Site — Vegas + San Diego → DR San Jose + Air Gap",
-      "sites": [
-        {"id": "vegas", "name": "Las Vegas DC", "workloads": ["VMs", "Databases", "Applications"],
-         "vm_count": 280, "storage_tb": 96, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 200, "retention_days": 30},
-        {"id": "san_diego", "name": "San Diego DC", "workloads": ["VMs", "File Systems", "Databases"],
-         "vm_count": 210, "storage_tb": 72, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 6, "hsx_tb": 300, "retention_days": 30},
-        {"id": "san_jose", "name": "San Jose DR", "workloads": ["VMs", "Databases", "File Systems"],
-         "vm_count": 120, "storage_tb": 48, "backup_software": "commvault", "backup_target": "pure", "retention_days": 14, "media_agents": 2}
-      ],
-      "connections": [
-        {"from": "vegas", "to": "san_jose", "speed": "Replication"},
-        {"from": "san_diego", "to": "san_jose", "speed": "Replication"}
-      ],
-      "agp": {
-        "cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 500,
-        "retention_days": 365, "callout": "Vegas & San Diego Backups to Air Gap"
-      }
-    },
-    stress: {
-      "title": "Future State — LA stress test (8 workloads, 6 HSX nodes)",
-      "sites": [
-        {"name": "Vegas DC (Primary)", "workloads": ["VMs", "Database", "Files", "Applications"],
-         "vm_count": 420, "storage_tb": 68, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
-        {"name": "Reno DC", "workloads": ["VMs"],
-         "vm_count": 210, "storage_tb": 34, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150},
-        {"name": "LA DC", "workloads": ["VMs", "Database", "Files", "Applications", "Exchange", "SAP", "Linux", "NAS"],
-         "vm_count": 820, "storage_tb": 140, "backup_software": "commvault", "backup_target": "hsx", "hsx_nodes": 6, "hsx_tb": 300}
-      ]
-    },
-    showcase_density: {
-      "title": "Showcase A — 5 Branch Offices in One Row (Density Win)",
-      "sites": [
-        {"id": "boston",  "name": "Boston Branch",  "workloads": ["VMs", "Databases"],          "vm_count": 60,  "storage_tb": 12, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
-        {"id": "chicago", "name": "Chicago Branch", "workloads": ["VMs", "Files"],              "vm_count": 90,  "storage_tb": 18, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
-        {"id": "denver",  "name": "Denver Branch",  "workloads": ["VMs", "Databases", "Files"], "vm_count": 75,  "storage_tb": 15, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
-        {"id": "atlanta", "name": "Atlanta Branch", "workloads": ["VMs", "Databases"],          "vm_count": 110, "storage_tb": 22, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14},
-        {"id": "phoenix", "name": "Phoenix Branch", "workloads": ["VMs", "Files"],              "vm_count": 50,  "storage_tb": 10, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 80, "retention_days": 14}
-      ]
-    },
-    showcase_tiny: {
-      "title": "Showcase B — Single Small Site (Auto-Centered)",
-      "sites": [
-        {"id": "hq", "name": "Corporate HQ", "workloads": ["VMs", "Databases"],
-         "vm_count": 35, "storage_tb": 8, "backup_target": "hsx", "hsx_nodes": 2, "hsx_tb": 60, "retention_days": 30}
-      ]
-    },
-    showcase_saas_mix: {
-      "title": "Showcase C — 5 SaaS Apps, 3 Clouds (Multi-Cloud SaaS)",
-      "sites": [
-        {"id": "main", "name": "Main Site", "workloads": ["VMs", "Databases", "File Systems"],
-         "vm_count": 150, "storage_tb": 80, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
-        {"id": "m365",       "type": "saas_app", "app": "M365",             "cloud": "azure"},
-        {"id": "salesforce", "type": "saas_app", "app": "Salesforce",       "cloud": "azure"},
-        {"id": "gworkspace", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"},
-        {"id": "ad",         "type": "saas_app", "app": "Active Directory", "cloud": "azure"},
-        {"id": "snow",       "type": "saas_app", "app": "ServiceNow",       "cloud": "aws"}
-      ],
-      "agps": [
-        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 200, "retention_days": 180, "callout": "Main DC + Azure SaaS"},
-        {"cloud_provider": "gcp",   "tier": "Cool Tier", "capacity_tb": 60,  "retention_days": 180},
-        {"cloud_provider": "aws",   "tier": "Cool Tier", "capacity_tb": 40,  "retention_days": 180}
-      ]
-    },
-    showcase_replication_mesh: {
-      "title": "Showcase D — 4-Site Replication Mesh (Bus Lane Routing)",
-      "sites": [
-        {"id": "east",    "name": "East DC",    "workloads": ["VMs", "Databases"],          "vm_count": 200, "storage_tb": 60, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
-        {"id": "central", "name": "Central DC", "workloads": ["VMs", "Files"],              "vm_count": 150, "storage_tb": 45, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
-        {"id": "west",    "name": "West DC",    "workloads": ["VMs", "Databases", "Files"], "vm_count": 180, "storage_tb": 55, "backup_target": "hsx", "hsx_nodes": 3, "hsx_tb": 150, "retention_days": 30},
-        {"id": "dr",      "name": "DR Site",    "workloads": ["VMs", "Databases", "Files"], "vm_count": 120, "storage_tb": 40, "backup_target": "pure", "retention_days": 14, "media_agents": 2}
-      ],
-      "connections": [
-        {"from": "east",    "to": "dr", "speed": "Replication"},
-        {"from": "central", "to": "dr", "speed": "Replication"},
-        {"from": "west",    "to": "dr", "speed": "Replication"}
-      ],
-      "agp": {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 400, "retention_days": 365, "callout": "All Sites to Air Gap"}
-    },
-    showcase_kitchen_sink: {
-      "title": "Showcase E — Hybrid Kitchen Sink (Everything Together)",
-      "sites": [
-        {"id": "primary", "name": "Primary DC", "workloads": ["VMs", "Databases", "File Systems"],
-         "vm_count": 250, "storage_tb": 120, "backup_target": "hsx", "hsx_nodes": 4, "hsx_tb": 200, "retention_days": 30},
-        {"id": "dr", "name": "DR Site", "workloads": ["VMs", "Databases", "File Systems"],
-         "vm_count": 250, "storage_tb": 120, "backup_target": "pure", "retention_days": 14, "media_agents": 2},
-        {"id": "m365",       "type": "saas_app", "app": "M365",             "cloud": "azure"},
-        {"id": "salesforce", "type": "saas_app", "app": "Salesforce",       "cloud": "azure"},
-        {"id": "gworkspace", "type": "saas_app", "app": "Google Workspace", "cloud": "gcp"}
-      ],
-      "connections": [{"from": "primary", "to": "dr", "speed": "Replication"}],
-      "agps": [
-        {"cloud_provider": "azure", "tier": "Cool Tier", "capacity_tb": 500, "retention_days": 365,
-         "callout": "Primary + DR + Azure SaaS to Air Gap",
-         "cleanroom": {"tenant": "Customer Tenant", "capacity_tb": 100}},
-        {"cloud_provider": "gcp",   "tier": "Cool Tier", "capacity_tb": 60,  "retention_days": 180}
-      ]
-    }
-  };
 
+  // Load a named scenario file from the server (scenario_<name>.json)
   function loadPreset(name) {
-    document.getElementById('scenario').value = JSON.stringify(PRESETS[name], null, 2);
-    generate();
-  }
-
-  function loadRandom4() {
-    const WORKLOADS = ['VMs', 'Database', 'Files', 'Applications', 'Devices'];
-    const CITIES = ['NYC', 'Austin', 'Denver', 'Seattle', 'Boston', 'Atlanta', 'Miami', 'Chicago', 'Phoenix', 'Dallas'];
-    const SUFFIX = ['DC', 'DC (Primary)', 'Branch', 'Edge', 'DR'];
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-    const pickN = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
-    const shuffled = [...CITIES].sort(() => Math.random() - 0.5).slice(0, 4);
-    const sites = shuffled.map((city, i) => {
-      const target = Math.random() < 0.7 ? 'hsx' : 'pure';
-      const s = {
-        name: `${city} ${pick(SUFFIX)}`,
-        workloads: pickN(WORKLOADS, 2 + Math.floor(Math.random() * 3)),
-        vm_count: pick([95, 140, 220, 310, 420, 540, 720]),
-        storage_tb: pick([14, 22, 38, 56, 82, 110, 160]),
-        backup_software: 'commvault',
-        backup_target: target,
-      };
-      if (target === 'hsx') {
-        s.hsx_nodes = 2 + Math.floor(Math.random() * 3);
-        s.hsx_tb = s.hsx_nodes * 50;
-      }
-      return s;
-    });
-    const scenario = { title: 'Future State — 4 Sites (Random)', sites };
-    document.getElementById('scenario').value = JSON.stringify(scenario, null, 2);
-    generate();
+    const status = document.getElementById('status');
+    status.textContent = `Loading ${name}…`;
+    fetch('/scenario/' + name)
+      .then(r => r.text())
+      .then(txt => {
+        document.getElementById('scenario').value = txt;
+        generate();
+      })
+      .catch(e => { status.textContent = 'Error: ' + e.message; });
   }
 
   // Load current scenario from server and auto-render

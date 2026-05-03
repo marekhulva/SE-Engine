@@ -16,6 +16,7 @@ given h so the card fills whatever row height the layout engine assigns.
 """
 from .base import Component, rect, text, image
 from .tokens import COLORS, IMAGES, CHIP_ICON
+from icon_resolver import resolve_icon
 
 
 DISPLAY_NAME = {
@@ -29,6 +30,9 @@ DISPLAY_NAME = {
 
 
 def _resolve_icon(app_name):
+    rel = resolve_icon(app_name)
+    if rel:
+        return rel
     key = app_name.lower().strip()
     chip_key = CHIP_ICON.get(key)
     if chip_key and IMAGES.get(chip_key):
@@ -41,16 +45,16 @@ class SaaSAppCard(Component):
     placement = 'fill'    # sized to available space, not anchored
 
     # Preferred (unscaled) dimensions — render scales these to fit given h
-    LABEL_H = 0.18
-    UNDERLINE_H = 0.02
+    LABEL_H = 0.16
+    UNDERLINE_H = 0.0          # underline removed
     LABEL_BLOCK_H = LABEL_H + UNDERLINE_H
-    LABEL_GAP = 0.05
-    INNER_PAD = 0.10
-    CONTAINER_RADIUS = 0.07
-    ICON_SIZE = 0.36
-    PROTECTED_H = 0.16
-    GAP = 0.07
-    CARD_W = 1.18
+    LABEL_GAP = 0.02           # tighter — label sits just above the box
+    INNER_PAD = 0.06           # tighter inner padding
+    CONTAINER_RADIUS = 0.06
+    ICON_SIZE = 0.30
+    PROTECTED_H = 0.13
+    GAP = 0.01                 # tiny gap between icon and "✓ Protected"
+    CARD_W = 1.00
 
     def __init__(self, app_name, cloud=None, **_extra):
         self.app_name = DISPLAY_NAME.get(app_name.lower().strip(), app_name)
@@ -93,16 +97,14 @@ class SaaSAppCard(Component):
                            self.app_name, fs=max(6, round(8 * s)),
                            color=COLORS['text_primary'],
                            bold=True, align='center'))
-        shapes.append(rect(label_x, y + label_h,
-                           label_w, underline_h,
-                           fill=COLORS['purple_primary'], stroke=None))
+        # underline removed per design
 
         container_top = y + label_h + underline_h + label_gap
         inner_h = icon_size + gap + protected_h
         container_h = inner_h + inner_pad * 2
 
         shapes.append(rect(x, container_top, w, container_h,
-                           fill=None, stroke=COLORS['border_medium'], sw=0.75,
+                           fill=None, stroke=COLORS['purple_primary'], sw=1.0,
                            radius=self.CONTAINER_RADIUS))
 
         cy = container_top + inner_pad

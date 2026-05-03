@@ -1,48 +1,80 @@
 {
-  "title": "Future State \u2014 OnPrem + DR + SaaS with AGP & Cleanroom",
+  "title": "Primary DC + DR + AWS Production — AWS AGP + Cleanroom",
+  "unity": true,
   "sites": [
     {
-      "id": "production",
-      "name": "Production DC",
-      "workloads": ["VMs", "DBs", "File Systems"],
-      "vm_count": 150,
-      "storage_tb": 120,
+      "id": "primary",
+      "name": "Primary DC",
+      "workloads": ["VMware", "VMs", "File Servers", "Kubernetes"],
+      "vm_count": 120,
+      "storage_tb": 150,
       "backup_software": "commvault",
-      "backup_target": "hsx",
-      "hsx_nodes": 3,
-      "hsx_tb": 180,
+      "backup_target": "netapp",
+      "media_agents": 2,
       "retention_days": 30
     },
     {
       "id": "dr",
       "name": "DR Site",
-      "workloads": ["VMs", "DBs", "File Systems"],
-      "vm_count": 60,
-      "storage_tb": 50,
+      "workloads": ["VMware", "VMs", "File Servers", "Kubernetes"],
+      "vm_count": 120,
+      "storage_tb": 150,
       "backup_software": "commvault",
-      "backup_target": "pure",
-      "retention_days": 15,
-      "media_agents": 2
+      "backup_target": "netapp",
+      "media_agents": 2,
+      "retention_days": 30
     },
+    {
+      "id": "aws_prod",
+      "type": "cloud",
+      "cloud": "aws",
+      "region": "us-east-1",
+      "name": "AWS Production",
+      "workloads": ["EC2", "S3", "RDS", "Lambda"],
+      "vm_count": 200,
+      "storage_tb": 80,
+      "backup_software": "commvault",
+      "backup_target": "none",
+      "media_agents": 2,
+      "retention_days": 30
+    }
+  ],
+  "connections": [
+    {"from": "primary", "to": "dr", "speed": "Replication"}
+  ],
+  "agps": [
+    {
+      "cloud_provider": "aws",
+      "tier": "Cool Tier",
+      "capacity_tb": 150,
+      "retention_days": 180,
+      "callout": "All Backups Replicated to AGP",
+      "cleanroom": {
+        "tenant": "Customer Tenant",
+        "capacity_tb": 50
+      }
+    }
+  ],
+
+  "_disabled_sites": [
     {
       "id": "saas",
       "type": "saas",
       "name": "SaaS Tenants",
-      "apps": ["M365", "Active Directory", "Salesforce"]
+      "apps": ["AD/Entra ID", "M365"],
+      "callout": {
+        "message": "All SaaS Data Protected to Azure AGP",
+        "kind": "positive"
+      }
     }
   ],
-  "connections": [
-    {"from": "production", "to": "dr", "speed": "Replication"}
-  ],
-  "agp": {
-    "cloud_provider": "azure",
-    "tier": "Cool Tier",
-    "capacity_tb": 200,
-    "retention_days": 180,
-    "callout": "All Backups Replicated to AGP",
-    "cleanroom": {
-      "tenant": "Customer Tenant",
-      "capacity_tb": 50
+  "_disabled_agps": [
+    {
+      "cloud_provider": "azure",
+      "tier": "Cool Tier",
+      "capacity_tb": 50,
+      "retention_days": 180,
+      "callout": "M365 + Entra ID to Azure Air Gap"
     }
-  }
+  ]
 }

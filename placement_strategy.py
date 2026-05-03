@@ -43,17 +43,15 @@ def _occupied_rects_on_slide(sites, site_rects, agp_config, title_h, unity_h):
 
 
 def saas_app_placement(saas_app_data, sites, site_rects, agp_config,
-                       site_top_y, margin_left, fallback_gap=0.4):
+                       site_top_y, margin_left, fallback_gap=0.4,
+                       saas_layout=None):
     """Find an empty region on the slide where the SaaS pairs fit.
 
-    Strategy:
-      1. Compute the canvas (slide bounds).
-      2. Subtract every anchor component to get free rectangles.
-      3. Pick the largest rect that fits the SaaS pairs at preferred size.
-         If found, return its origin and size + n_cols=1 (single column).
-      4. If no rect fits the full vertical stack, pick the largest rect
-         and request column-wrapping inside it.
-      5. Last resort: shrink to fit in the largest available rect.
+    `saas_layout` (optional override from the scenario):
+      - "single_column"  → force n_cols=1, vertical stack
+      - "two_columns"    → force n_cols=2
+      - "three_columns"  → force n_cols=3
+      - None (default)   → solver picks smallest k that fits the free rect
 
     Returns: { x, y, available_h, available_w, n_cols }
     """
@@ -61,6 +59,12 @@ def saas_app_placement(saas_app_data, sites, site_rects, agp_config,
     if n == 0:
         return {'x': margin_left, 'y': site_top_y, 'available_h': None,
                 'available_w': None, 'n_cols': 1}
+
+    forced_cols = {
+        'single_column': 1, 'one_column': 1, '1_col': 1,
+        'two_columns': 2, '2_col': 2,
+        'three_columns': 3, '3_col': 3,
+    }.get(saas_layout)
 
     # Probe SaaS pair dimensions at preferred size.
     card_probe = SaaSAppCard('_probe')
@@ -82,36 +86,54 @@ def saas_app_placement(saas_app_data, sites, site_rects, agp_config,
     )
     rects = free_rects(canvas, occupied)
 
-    # Try increasing column counts. For each k, see if any free rect
-    # holds k columns × ceil(n/k) rows at preferred size. Pick the
-    # smallest k that fits.
-    for k in range(1, n + 1):
-        rows = (n + k - 1) // k
-        need_w = k * pair_w + (k - 1) * COL_GAP
+    # If the scenario forces a column count, try that first. If it fits in
+    # any free rect, use it (even if a smaller free rect would have been
+    # picked by the auto-solver). If it doesn't fit at preferred size, the
+    # shrink-fallback below will honor it.
+    if forced_cols:
+        rows = (n + forced_cols - 1) // forced_cols
+        need_w = forced_cols * pair_w + (forced_cols - 1) * COL_GAP
         need_h = rows * pair_h + (rows - 1) * ROW_GAP
         rect = find_best(rects, need_w, need_h, prefer='top_right')
         if rect is not None:
-            # Place flush against the top of the chosen rect.
             return {'x': rect.x, 'y': rect.y,
-                    'available_h': need_h,        # render at preferred
-                    'available_w': need_w,
-                    'n_cols': k}
+                    'available_h': need_h, 'available_w': need_w,
+                    'n_cols': forced_cols}
+        # Forced column count doesn't fit at preferred size — fall through
+        # to the largest-rect shrink branch below, but keep the forced k.
 
-    # Nothing fits at preferred size. Shrink: take the largest rect
-    # available, decide column count to maximize per-row height.
-    if rects:
-        biggest = max(rects, key=lambda r: r.area)
-        # Try column counts; pick the one that produces the largest row_h
-        # while still letting all rows fit horizontally.
-        best_k, best_row_h = 1, 0
+    # Try increasing column counts. For each k, see if any free rect
+    # holds k columns × ceil(n/k) rows at preferred size. Pick the
+    # smallest k that fits.
+    if not forced_cols:
         for k in range(1, n + 1):
             rows = (n + k - 1) // k
             need_w = k * pair_w + (k - 1) * COL_GAP
-            if need_w > biggest.w:
-                continue
-            row_h = (biggest.h - ROW_GAP * (rows - 1)) / rows
-            if row_h > best_row_h:
-                best_row_h, best_k = row_h, k
+            need_h = rows * pair_h + (rows - 1) * ROW_GAP
+            rect = find_best(rects, need_w, need_h, prefer='top_right')
+            if rect is not None:
+                return {'x': rect.x, 'y': rect.y,
+                        'available_h': need_h,
+                        'available_w': need_w,
+                        'n_cols': k}
+
+    # Nothing fits at preferred size. Shrink: take the largest rect
+    # available, decide column count.
+    if rects:
+        biggest = max(rects, key=lambda r: r.area)
+        if forced_cols:
+            best_k = forced_cols
+        else:
+            # Pick column count that maximizes row_h while fitting horizontally.
+            best_k, best_row_h = 1, 0
+            for k in range(1, n + 1):
+                rows = (n + k - 1) // k
+                need_w = k * pair_w + (k - 1) * COL_GAP
+                if need_w > biggest.w:
+                    continue
+                row_h = (biggest.h - ROW_GAP * (rows - 1)) / rows
+                if row_h > best_row_h:
+                    best_row_h, best_k = row_h, k
         return {'x': biggest.x, 'y': biggest.y,
                 'available_h': biggest.h,
                 'available_w': biggest.w,

@@ -42,8 +42,10 @@ IMAGES = {
     'agp_cleanroom':     'vendor-icons/agp_cleanroom.png',
     'agp_bolt':          'vendor-icons/agp_bolt.png',
     'agp_firewall':      'vendor-icons/agp_firewall.png',
-    # Cloud provider logos (Azure extracted; others placeholder for MVP)
+    # Cloud provider logos
     'cloud_azure':       'vendor-icons/azure_logo.png',
+    'cloud_aws':         'vendor-icons/aws_logo.png',
+    'cloud_gcp':         'vendor-icons/gcp_logo.png',
     # Workload chip icons (white outline, transparent bg)
     'chip_devices':      'chip-icons/devices.png',
     'chip_database':     'chip-icons/database.png',

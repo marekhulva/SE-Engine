@@ -11,8 +11,8 @@ from .tokens import COLORS, IMAGES
 
 CLOUD_META = {
     'azure': {'logo': 'cloud_azure', 'name': 'Azure',    'color': '#0078D4'},
-    'aws':   {'logo': None,          'name': 'AWS',      'color': '#FF9900'},
-    'gcp':   {'logo': None,          'name': 'GCP',      'color': '#4285F4'},
+    'aws':   {'logo': 'cloud_aws',   'name': 'AWS',      'color': '#FF9900'},
+    'gcp':   {'logo': 'cloud_gcp',   'name': 'GCP',      'color': '#4285F4'},
     'oci':   {'logo': None,          'name': 'OCI',      'color': '#F80000'},
 }
 
@@ -30,13 +30,14 @@ class SaaSAGPCard(Component):
     priority = 3          # paired with SaaSAppCard — shrinks together
     placement = 'fill'
 
-    LABEL_H       = 0.18
-    UNDERLINE_H   = 0.02
+    LABEL_H       = 0.16
+    UNDERLINE_H   = 0.0           # underline removed
     LABEL_BLOCK_H = LABEL_H + UNDERLINE_H
-    LABEL_GAP     = 0.05
-    CARD_PAD      = 0.08
-    CARD_RADIUS   = 0.07
-    CARD_W        = CLOUD_W + CARD_PAD * 2
+    LABEL_GAP     = 0.04
+    CARD_PAD      = 0.06
+    CARD_RADIUS   = 0.06
+    # Tighter card: scale cloud down by ~0.85 inside the card width
+    CARD_W        = CLOUD_W * 0.85 + CARD_PAD * 2
 
     def __init__(self, cloud_provider='azure', **_extra):
         self.cloud_provider = cloud_provider.lower()
@@ -66,8 +67,11 @@ class SaaSAGPCard(Component):
         pref_h = self.preferred_size()[1]
         s = h / pref_h if pref_h > 0 else 1.0
 
-        cloud_w     = CLOUD_W     * s
-        cloud_h     = CLOUD_H     * s
+        # Card itself is now ~0.85× the original cloud width — shrink the
+        # internal cloud area to match so proportions stay clean.
+        CARD_INNER_SCALE = 0.85
+        cloud_w     = CLOUD_W     * s * CARD_INNER_SCALE
+        cloud_h     = CLOUD_H     * s * CARD_INNER_SCALE
         shield_size = SHIELD_SIZE * s
         logo_size   = LOGO_SIZE   * s
         icon_gap    = ICON_GAP    * s
@@ -80,33 +84,38 @@ class SaaSAGPCard(Component):
 
         label_w = min(w * 0.90, 2.0)
         label_x = x + (w - label_w) / 2
+        # 'Air Gap' label uses the same font sizing as the SaaS-app label
         shapes.append(text(label_x, y, label_w, label_h,
-                           'Air Gap', fs=max(7, round(10 * s)),
+                           'Air Gap', fs=max(6, round(8 * s)),
                            color=COLORS['text_primary'],
                            bold=True, align='center'))
-        shapes.append(rect(label_x, y + label_h,
-                           label_w, underline_h,
-                           fill=COLORS['purple_primary'], stroke=None))
+        # underline removed per design
 
         container_top = y + label_h + underline_h + label_gap
         card_h_box    = cloud_h + card_pad * 2
 
         shapes.append(rect(x, container_top, w, card_h_box,
-                           fill=None, stroke=COLORS['border_medium'], sw=0.75,
+                           fill=None, stroke=COLORS['purple_primary'], sw=1.0,
                            radius=self.CARD_RADIUS))
 
-        cloud_x = x + (w - cloud_w) / 2
-        cloud_y = container_top + card_pad
-        shapes.append(image(cloud_x, cloud_y, cloud_w, cloud_h, IMAGES['agp_cloud']))
+        # Render the cloud image smaller than the slot it lives in — keeps
+        # card size unchanged but de-emphasizes the cloud picture.
+        CLOUD_IMG_SCALE = 0.65
+        img_w = cloud_w * CLOUD_IMG_SCALE
+        img_h = cloud_h * CLOUD_IMG_SCALE
+        cloud_x = x + (w - img_w) / 2
+        cloud_y = container_top + card_pad + (cloud_h - img_h) / 2
+        shapes.append(image(cloud_x, cloud_y, img_w, img_h, IMAGES['agp_cloud']))
 
         row_w = shield_size + icon_gap + logo_size
-        row_x = cloud_x + (cloud_w - row_w) / 2
-        row_cy = cloud_y + cloud_h * ICONS_Y_CENTER
+        row_x = cloud_x + (img_w - row_w) / 2
+        row_cy = cloud_y + img_h * ICONS_Y_CENTER
 
         shapes.append(image(row_x, row_cy - shield_size / 2,
                             shield_size, shield_size, IMAGES['agp_shield']))
 
-        logo_x = row_x + shield_size + icon_gap
+        # Pull logo closer to the shield so it doesn't bump into the cloud's right edge
+        logo_x = row_x + shield_size + icon_gap - logo_size * 0.30
         logo_y = row_cy - logo_size / 2
         if self._logo_key and IMAGES.get(self._logo_key):
             shapes.append(image(logo_x, logo_y, logo_size, logo_size,

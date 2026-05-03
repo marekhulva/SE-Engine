@@ -1,6 +1,7 @@
 """WorkloadChip — rounded icon tile with tiny label below. Clean, modern."""
 from .base import Component, rect, text, image
 from .tokens import COLORS, IMAGES, CHIP_ICON
+from icon_resolver import resolve_icon
 
 
 class WorkloadChip(Component):
@@ -10,15 +11,23 @@ class WorkloadChip(Component):
     RADIUS = 0.06
 
     def __init__(self, label, icon=None):
-        """`icon` (optional) is a lookup key that resolves to an image, in
-        priority order: CHIP_ICON alias ("database") → direct IMAGES key
-        ("chip_database" / "m365"). If omitted, falls back to matching
-        the lowercased label against CHIP_ICON."""
+        """`icon` (optional) is a lookup key that resolves to an image.
+        Resolution order: registry (icon_resolver) → CHIP_ICON alias →
+        direct IMAGES key. None falls through to text-only label."""
         self.label = label
         self._icon_src = self._resolve_icon(label, icon)
 
     @staticmethod
     def _resolve_icon(label, icon):
+        # 1. New registry-based resolver covers vendor/saas/tech + fallbacks.
+        for candidate in (icon, label):
+            if not candidate:
+                continue
+            rel = resolve_icon(candidate)
+            if rel:
+                return rel
+        # 2. Legacy CHIP_ICON path — kept for the bundled chip-icons/saas-icons
+        #    that haven't been migrated to the registry yet.
         if icon:
             key = icon.lower().strip()
             chip_key = CHIP_ICON.get(key)
@@ -36,18 +45,20 @@ class WorkloadChip(Component):
         shapes = []
         icon_area_h = h - self.LABEL_H
 
-        # Icon centered in the upper area — no card behind it
+        # Icon: bottom-aligned in its area so the label tucks right under
         if self._icon_src:
             pad = 0.04
             icon_size = min(icon_area_h - pad * 2, w - pad * 2)
             icon_x = x + (w - icon_size) / 2
-            icon_y = y + (icon_area_h - icon_size) / 2
+            # Push icon to the bottom of its area so there's almost no gap
+            # between icon and label
+            icon_y = y + icon_area_h - icon_size - pad * 0.5
             shapes.append(image(icon_x, icon_y, icon_size, icon_size,
                                 self._icon_src))
 
-        # Plain text label beneath the icon
-        shapes.append(text(x, y + icon_area_h + 0.02,
-                           w, self.LABEL_H - 0.02,
+        # Label nestled directly under the icon (tiny gap)
+        shapes.append(text(x, y + icon_area_h - 0.01,
+                           w, self.LABEL_H,
                            self.label, fs=6,
                            color=COLORS['text_primary'], align='center'))
         return shapes

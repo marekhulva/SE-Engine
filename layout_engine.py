@@ -21,7 +21,7 @@ The Fabric.js canvas uses content_w/h to set an initial fit-to-screen zoom.
 The PPTX renderer scales the whole layout to fit a 13.33×7.5 slide.
 """
 import re
-from components import OnPremSite, SaaSSite, SaaSAppCard, Connection, AGPZone, UnityCard, COLORS
+from components import OnPremSite, CloudSite, SaaSSite, SaaSAppCard, Connection, AGPZone, UnityCard, COLORS
 from components.saas_agp_card import SaaSAGPCard
 from components.base import text, line, oval
 from components.connection import Connection as _ConnStyle
@@ -32,20 +32,26 @@ from components.clients_box import ClientsAndStorage
 def _build_site(d):
     """Instantiate the right site class for a scenario entry.
     Default is OnPremSite; `type: 'saas'` switches to SaaSSite;
-    `type: 'saas_app'` builds an individual SaaSAppCard."""
+    `type: 'saas_app'` builds an individual SaaSAppCard;
+    `type: 'cloud'` builds a CloudSite (cloud-branded container, defaults
+    to backup_target='none' for cloud-direct backups)."""
     if d.get('type') == 'saas_app':
         return SaaSAppCard.from_dict(d)
     if d.get('type') == 'saas':
         return SaaSSite.from_dict(d)
+    if d.get('type') == 'cloud':
+        return CloudSite.from_dict(d)
     return OnPremSite.from_dict(d)
 
 # Origin offsets for the title block and first row of components. There's no
 # right/bottom margin — the canvas extends as far as content needs.
 MARGIN_TOP = 1.0
 MARGIN_LEFT = 0.3
+MARGIN_RIGHT = 0.3   # symmetric right-side breathing room when canvas has slack
 SITE_GAP = 0.4
-TITLE_W = 12.73   # nominal width for title text wrapping; visual only
-AGP_GAP = 0.5     # horizontal gap between rightmost site and AGP zone
+TITLE_W = 12.73      # nominal width for title text wrapping; visual only
+AGP_GAP = 0.5        # minimum horizontal gap between rightmost site and AGP zone
+CANVAS_W = 13.33     # PPTX slide width (also the natural canvas width)
 
 
 def _slugify(s):
@@ -487,9 +493,19 @@ def generate_layout(scenario):
     # placement=fill) shrink to fit whatever space the strategy assigns.
     saas_start_y = MARGIN_TOP + 0.1 + unity_reserve
 
+    has_grouped_saas = any(isinstance(s, SaaSSite) for s in sites)
+    secondary_agp = (agp_configs[1]
+                     if len(agp_configs) >= 2 and has_grouped_saas
+                     else None)
+
     if agp_config and sites:
         shapes.extend(_place_agp(agp_config, sites, rects,
-                                 unity_reserve, badge_num=agp_badge_num))
+                                 unity_reserve, badge_num=agp_badge_num,
+                                 route_saas=(secondary_agp is None),
+                                 force_onprem_anchor=(secondary_agp is not None)))
+
+    if secondary_agp is not None:
+        shapes.extend(_place_saas_agp(secondary_agp, sites, rects))
 
     if saas_app_data:
         from placement_strategy import saas_app_placement
@@ -498,6 +514,7 @@ def generate_layout(scenario):
             site_top_y=saas_start_y,
             margin_left=MARGIN_LEFT,
             fallback_gap=SITE_GAP,
+            saas_layout=scenario.get('saas_layout'),
         )
         saas_shapes, _ = _place_saas_app_rows(
             saas_app_data, agp_configs, spot['x'], spot['y'],
@@ -649,7 +666,8 @@ def _agp_xy(config, sites, site_rects):
     return x, y
 
 
-def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None):
+def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None,
+               route_saas=True, force_onprem_anchor=False):
     """Position the AGP zone.
 
     Placement rule:
@@ -674,6 +692,13 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     onprem_pairs = [(s, r) for s, r in zip(sites, site_rects)
                     if isinstance(s, OnPremSite)]
 
+    # When the caller is placing a primary AGP that should serve only the
+    # on-prem sites (because a separate SaaS AGP will be placed later), the
+    # SaaS-tuck position behaviour and the SaaS routing block must be
+    # suppressed. Treat the layout as if there were no SaaS site for placement.
+    if force_onprem_anchor:
+        saas_pairs = []
+
     if saas_pairs:
         # AGP under SaaS: same X as the SaaS site's left edge, Y just
         # below the SaaS bottom edge (use the rect bottom plus a small gap).
@@ -690,7 +715,12 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
             rightmost_x = MARGIN_LEFT
         if min_x is not None:
             rightmost_x = max(rightmost_x, min_x)
-        x = rightmost_x + AGP_GAP
+        # Snug-pack floor: AGP must be at least AGP_GAP to the right of the
+        # rightmost site. When the canvas has horizontal slack (e.g. a single
+        # site + AGP doesn't fill 13.33"), push AGP to the right edge so the
+        # on-prem cluster and AGP have visual breathing room instead of
+        # collapsing to the left half.
+        x = max(rightmost_x + AGP_GAP, CANVAS_W - MARGIN_RIGHT - zw)
 
         if onprem_pairs:
             anchor_site, anchor_rect = max(onprem_pairs,
@@ -742,7 +772,8 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     # SaaS: short direct vertical from SaaS bottom-center down to AGP entry Y,
     # then horizontal into the AirGapBreak. No shared bus — SaaS is already
     # adjacent to the AGP zone.
-    for s, r in saas_pairs:
+    saas_routed = saas_pairs if route_saas else []
+    for s, r in saas_routed:
         sx, sy, sw_, sh_ = r
         saas_cx = sx + sw_ / 2
         line_shapes.append(line(saas_cx, sy + sh_, saas_cx, target_y, **stroke_kwargs))
@@ -756,6 +787,60 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     badge = _copy_badge(bus_x - 0.12, target_y - 0.12, badge_num)
 
     return line_shapes + list(zone.render(x, y, zw, zh)) + badge
+
+
+def _place_saas_agp(config, sites, site_rects):
+    """Place a secondary AGP card next to the grouped SaaS site.
+
+    Used when scenario.agps[] has 2+ entries and a `type:'saas'` site exists:
+    the primary AGP serves on-prem (placed right of on-prem), and this
+    helper places a compact SaaSAGPCard to the RIGHT of the SaaS site,
+    with a dashed connection line from SaaS center to the card.
+
+    Returns shape list. No-op if no SaaS site exists.
+    """
+    saas_pairs = [(s, r) for s, r in zip(sites, site_rects)
+                  if isinstance(s, SaaSSite)]
+    if not saas_pairs:
+        return []
+
+    saas_site, saas_rect = saas_pairs[0]
+    sx, sy, sw_, sh_ = saas_rect
+
+    card = SaaSAGPCard.from_config(config)
+    pref_w, pref_h = card.preferred_size()
+
+    # Match the SaaS container height roughly so the AGP card visually pairs.
+    target_h = min(sh_ * 0.85, pref_h * 1.6)
+    s = target_h / pref_h if pref_h > 0 else 1.0
+    card_w = pref_w * s
+    card_h = target_h
+
+    # Place to the right of the SaaS rect with a small gap.
+    GAP = 0.30
+    card_x = sx + sw_ + GAP
+    card_y = sy + (sh_ - card_h) / 2
+
+    shapes = list(card.render(card_x, card_y, card_w, card_h))
+
+    # Dashed connection line: SaaS right edge mid → AGP card left edge mid.
+    line_y_saas = sy + sh_ / 2
+    line_y_card = card.line_anchor_y(card_y, scale=s)
+    line_y = (line_y_saas + line_y_card) / 2
+    shapes.append(line(sx + sw_, line_y, card_x, line_y,
+                       stroke=COLORS['purple_light'], sw=1.25,
+                       dash='dash', arrow='end'))
+
+    # Tier/capacity label under the card so it reads as a real AGP, not a logo.
+    tier = (config.get('tier') or 'Cool Tier').replace(' Tier', '')
+    cap_tb = config.get('capacity_tb')
+    cap_str = f' · {cap_tb} TB' if cap_tb else ''
+    sub_label = f'{tier}{cap_str}'
+    shapes.append(text(card_x, card_y + card_h + 0.04, card_w, 0.18,
+                       sub_label, fs=8, color=COLORS['text_muted'],
+                       align='center'))
+
+    return shapes
 
 
 def _copy_badge(x, y, num):

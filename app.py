@@ -34,13 +34,15 @@ Output ONLY valid JSON. No explanation, no markdown fences, no commentary — ju
   "vm_count": 100,                         // number of VMs / endpoints
   "storage_tb": 10,                        // raw protected data in TB
   "backup_software": "commvault",
-  "backup_target": "hsx" | "pure" | "none",
+  "backup_target": "hsx" | "pure" | "netapp" | "none",
   // backup_target rules:
-  //   "hsx"  — Commvault HyperScale X appliance on-prem (most common)
-  //   "pure" — Pure Storage FlashArray on-prem (used for DR sites or Pure-only shops)
-  //   "none" — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent
-  //            Use when user says: "no on-prem storage", "direct to cloud", "cloud-first",
-  //            "no HSX", "no local storage", "just a media agent"
+  //   "hsx"    — Commvault HyperScale X appliance on-prem (most common). Has MA built in.
+  //   "pure"   — Pure Storage FlashArray on-prem (DR sites or Pure-only shops). Needs separate MAs.
+  //   "netapp" — NetApp storage as backup target (renders as labelled NetApp box). Needs separate MAs.
+  //              Use when user says NetApp, ONTAP, or names a NetApp model.
+  //   "none"   — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent.
+  //              Use when user says: "no on-prem storage", "direct to cloud", "cloud-first",
+  //              "no HSX", "no local storage", "just a media agent".
   "hsx_nodes": 3,                          // required only when backup_target == "hsx"
   "hsx_tb": 150,                           // required only when backup_target == "hsx"
   "media_agents": 1,                       // standalone MAs (auto-set for non-HSX; always 1+ when backup_target=="none")
@@ -57,6 +59,30 @@ For a grouped SaaS card (multiple apps, one shared AGP):
   "apps": ["M365", "Active Directory", "Salesforce", "Google Workspace", "ServiceNow"]
 }
 ```
+
+For a cloud workload site (AWS / Azure / GCP — workloads run IN the cloud, not on-prem):
+```
+{
+  "id": "aws_prod",
+  "type": "cloud",
+  "cloud": "aws" | "azure" | "gcp",     // REQUIRED — drives container chrome + brand color
+  "region": "us-east-1",                // optional but recommended — shown as a pill
+  "name": "AWS Production",
+  "workloads": ["EC2", "S3", "RDS", "Lambda", "EKS"],   // cloud service names
+  "vm_count": 200,                      // EC2 instances / VMs / similar
+  "storage_tb": 80,                     // S3 + EBS volume in TB
+  "backup_software": "commvault",
+  "backup_target": "none",              // default for cloud — direct to AGP via cloud-resident MA
+  "media_agents": 2,                    // Commvault calls these "Gateways" in cloud
+                                        //   (the field name stays media_agents in JSON;
+                                        //    the renderer auto-relabels to "Gateway" / "Gateways"
+                                        //    + "GW" badge for type:"cloud" sites).
+  "retention_days": 30
+}
+```
+**RULE for `type: "cloud"`:** the workloads array must use cloud SERVICE names (EC2, S3, RDS, Lambda, EKS, Azure VM, Cosmos DB, AKS, BigQuery, GKE, Cloud Storage, etc.) — these resolve to the cloud-provider's official service icons. Do NOT use generic terms like "VMs" or "Databases" inside a cloud site. If user says "we run on AWS with VMs and a SQL database", translate to ["EC2", "RDS"]. If user names a service we don't have an icon for, fall back to a generic chip but emit the service name.
+
+**RULE on Media Agents vs Gateways:** the JSON schema field is always `media_agents` regardless of site type, but Commvault CALLS them "Gateways" inside cloud environments. Cloud sites auto-render the label/badge as "Gateway" / "GW". On-prem sites render "Media Agent" / "MA". The user might say "two cloud gateways" or "a Gateway in our AWS account" — that's just media_agents=N on a `type: "cloud"` site, no special field needed.
 
 For individual SaaS app cards (each app gets its own card + its own AGP):
 ```
@@ -129,6 +155,16 @@ def layout():
 @app.route('/scenario')
 def scenario():
     with open(os.path.join(BASE_DIR, 'scenario_current.json')) as f:
+        return f.read(), 200, {'Content-Type': 'application/json'}
+
+@app.route('/scenario/<name>')
+def scenario_named(name):
+    """Load a named scenario file (e.g. /scenario/showcase_density)."""
+    safe = re.sub(r'[^a-z0-9_]', '', name.lower())
+    path = os.path.join(BASE_DIR, f'scenario_{safe}.json')
+    if not os.path.exists(path):
+        return jsonify({'error': f'unknown scenario: {safe}'}), 404
+    with open(path) as f:
         return f.read(), 200, {'Content-Type': 'application/json'}
 
 @app.route('/download', methods=['POST'])

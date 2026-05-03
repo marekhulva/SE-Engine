@@ -29,3 +29,7 @@ Thumbs.db
 tmp/
 *.tmp
 *.log
+
+# Upstream icon kits — re-fetchable by scripts/import_cloud_kits.py
+# (the curated PNGs it produces DO get committed under assets/icons/cloud/)
+source_kits/
