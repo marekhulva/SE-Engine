@@ -1,0 +1,13 @@
+{
+  "title": "Current State — Cohesity DataPlatform (managed via Helios)",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Servers", "NAS"],
+      "vm_count": 220, "storage_tb": 160,
+      "backup_software": "cohesity", "backup_target": "cohesity",
+      "hsx_nodes": 4, "hsx_tb": 160, "retention_days": 30
+    }
+  ]
+}

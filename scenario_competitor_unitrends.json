@@ -1,0 +1,13 @@
+{
+  "title": "Current State — Unitrends Recovery Series (single appliance)",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "HQ",
+      "workloads": ["VMs", "Databases", "File Servers"],
+      "vm_count": 60, "storage_tb": 30,
+      "backup_software": "unitrends", "backup_target": "unitrends",
+      "hsx_nodes": 1, "hsx_tb": 30, "retention_days": 30
+    }
+  ]
+}

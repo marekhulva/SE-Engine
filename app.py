@@ -33,16 +33,32 @@ Output ONLY valid JSON. No explanation, no markdown fences, no commentary — ju
   "workloads": ["VMs", "Databases", "File Systems", "Active Directory", "Applications", "Exchange", "SAP", "NAS"],
   "vm_count": 100,                         // number of VMs / endpoints
   "storage_tb": 10,                        // raw protected data in TB
-  "backup_software": "commvault",
-  "backup_target": "hsx" | "pure" | "netapp" | "none",
+  "backup_software": "commvault" | "veeam" | "networker" | "avamar" | "rubrik" | "cohesity" | "unitrends",
+  // Three-tier vendors (separate controller + data movers + storage cards):
+  //   "commvault"  — CommServe + Media Agents + HSX/Pure/NetApp. Badge "CS" + "MA".
+  //   "veeam"      — Backup Server + Backup Proxies + Repository / SOBR. Badge "VBR" + "PX". Veeam green.
+  //   "networker"  — NetWorker Server + Storage Nodes + Data Domain. Badge "NW" + "SN". Dell blue.
+  //   "avamar"     — Avamar Server + Data Movers + Avamar Data Store / Data Domain. Badge "AV" + "DM".
+  // Hyperconverged vendors (single cluster fuses controller + movers + storage — NO separate cards):
+  //   "rubrik"     — Brik Nodes (3+ node cluster). RUBRIK teal.
+  //   "cohesity"   — DataPlatform Nodes (3+ node cluster). Cohesity cyan.
+  //   "unitrends"  — Recovery Series Appliance (typically 1 node, all-in-one). Unitrends red.
+  // The renderer auto-derives the right CS-equivalent badge + data-mover labels (Proxy/Storage Node/Data Mover)
+  // from backup_software. For hyperconverged vendors, the in-site Command-Center card and data-mover row
+  // are suppressed entirely — only the ClusterAppliance renders.
+
+  "backup_target": "hsx" | "pure" | "netapp" | "rubrik" | "cohesity" | "unitrends" | "none",
   // backup_target rules:
-  //   "hsx"    — Commvault HyperScale X appliance on-prem (most common). Has MA built in.
-  //   "pure"   — Pure Storage FlashArray on-prem (DR sites or Pure-only shops). Needs separate MAs.
-  //   "netapp" — NetApp storage as backup target (renders as labelled NetApp box). Needs separate MAs.
-  //              Use when user says NetApp, ONTAP, or names a NetApp model.
-  //   "none"   — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent.
-  //              Use when user says: "no on-prem storage", "direct to cloud", "cloud-first",
-  //              "no HSX", "no local storage", "just a media agent".
+  //   "hsx"       — Commvault HyperScale X appliance on-prem (most common). Has MA built in.
+  //   "pure"      — Pure Storage FlashArray. Pairs with any three-tier vendor (Commvault, Veeam, NetWorker, Avamar).
+  //   "netapp"    — NetApp storage as backup target. Pairs with any three-tier vendor.
+  //   "rubrik"    — Rubrik cluster as the storage layer. Set backup_software='rubrik' too.
+  //   "cohesity"  — Cohesity cluster as the storage layer. Set backup_software='cohesity' too.
+  //   "unitrends" — Unitrends Recovery Series appliance. Set backup_software='unitrends' too.
+  //   "none"      — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent.
+  //                 Use when user says: "no on-prem storage", "direct to cloud", "cloud-first".
+  // RULE: For hyperconverged vendors (rubrik/cohesity/unitrends), backup_software AND backup_target should
+  //       MATCH (both = 'rubrik' for example). The cluster IS both the software and the storage.
   "hsx_nodes": 3,                          // required only when backup_target == "hsx"
   "hsx_tb": 150,                           // required only when backup_target == "hsx"
   "media_agents": 1,                       // standalone MAs (auto-set for non-HSX; always 1+ when backup_target=="none")

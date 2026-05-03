@@ -31,7 +31,11 @@
   },
   "dell": {
     "tier": "vendor", "iconify": "simple-icons:dell", "format": "svg",
-    "aliases": ["dell emc"]
+    "aliases": ["dell emc", "dell technologies", "data domain", "dd boost"]
+  },
+  "veeam": {
+    "tier": "vendor", "iconify": "simple-icons:veeam", "format": "svg",
+    "aliases": ["veeam backup", "veeam backup and replication", "vbr"]
   },
   "hpe": {
     "tier": "vendor", "iconify": "simple-icons:hp", "format": "svg",

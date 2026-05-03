@@ -19,6 +19,7 @@ from .header_bar import HeaderBar
 from .hsx_table import HSXTable
 from .pure_target import PureStorageTarget
 from .netapp_target import NetAppTarget
+from .cluster_appliance import ClusterAppliance, is_hyperconverged
 from .status_label import ProtectionStatus
 
 
@@ -27,6 +28,17 @@ def make_target(kind, **kwargs):
         return PureStorageTarget()
     if kind == 'netapp':
         return NetAppTarget()
+    if is_hyperconverged(kind):
+        # Rubrik / Cohesity / Unitrends — the cluster IS the controller +
+        # data movers + storage. Entire site in-container layout collapses
+        # to "container with the cluster appliance inside." The deployment
+        # kwarg (saas|software) toggles a "Managed via <SaaS portal>"
+        # subtitle for cloud-managed control planes (RSC / Helios /
+        # Unitrends Cloud DRaaS).
+        return ClusterAppliance(vendor=kind,
+                                nodes=kwargs.get('nodes'),
+                                total_tb=kwargs.get('total_tb', 90),
+                                deployment=kwargs.get('deployment', 'software'))
     return HSXTable(nodes=kwargs.get('nodes', 3),
                     total_tb=kwargs.get('total_tb', 150))
 
@@ -40,9 +52,12 @@ class ProtectedDataLayer(Component):
     RETENTION_GAP = 0.02
 
     def __init__(self, target_kind='hsx', is_commvault=True,
-                 hsx_nodes=3, hsx_tb=150, retention_days=None):
+                 hsx_nodes=3, hsx_tb=150, retention_days=None,
+                 deployment='software'):
         self.header = HeaderBar('Protected Data Layer', is_commvault)
-        self.target = make_target(target_kind, nodes=hsx_nodes, total_tb=hsx_tb)
+        self.target = make_target(target_kind, nodes=hsx_nodes,
+                                  total_tb=hsx_tb,
+                                  deployment=deployment)
         self.status = ProtectionStatus()
         self.retention_days = retention_days
 

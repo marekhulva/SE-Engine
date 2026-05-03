@@ -46,13 +46,37 @@ DEFAULT_VENDOR = {
 VENDOR_CONFIG = {
     'commvault': {
         'ui_key':     'commvault_ui',
-        'badge':      'CS',                         # CommServe
+        'badge':      'CS',                          # CommServe
         'badge_fill': COLORS['purple_primary'],
         'label':      'Commvault Command Center',
     },
-    # 'veeam':    {'ui_key': 'veeam_ui',    'label': 'Veeam Backup Console'},
-    # 'rubrik':   {'ui_key': 'rubrik_ui',   'label': 'Rubrik CDM'},
-    # Other vendors will auto-get badge='BS' + default color unless overridden.
+    'veeam': {
+        # No UI screenshot bundled — fall back to the vendor logo (synced
+        # via icon system) centered in the right slot.
+        'ui_key':     None,
+        'logo_key':   'veeam_logo',
+        'badge':      'VBR',                         # Veeam Backup & Replication
+        'badge_fill': '#00B143',                     # Veeam green
+        'label':      'Veeam Backup Server',
+    },
+    'networker': {
+        'ui_key':     None,
+        'logo_key':   'dell_logo',                   # Dell brand
+        'badge':      'NW',                          # NetWorker Server
+        'badge_fill': '#0076CE',                     # Dell blue
+        'label':      'NetWorker Server',
+    },
+    'avamar': {
+        'ui_key':     None,
+        'logo_key':   'dell_logo',
+        'badge':      'AV',                          # Avamar Server
+        'badge_fill': '#0076CE',
+        'label':      'Avamar Server',
+    },
+    # Hyperconverged vendors (Rubrik, Cohesity, Unitrends) are NOT listed
+    # here — they don't use the three-tier model (no separate CS card +
+    # MAs + storage). They render via ClusterAppliance instead, which
+    # owns the entire site-internal layout for those vendors.
 }
 
 
@@ -81,21 +105,37 @@ class BackupSoftwareStack(Component):
     # Lock's visible body occupies roughly x 20–76 of a 96 viewBox.
     LOCK_VISIBLE_RIGHT = 76 / 96
 
+    # Per-vendor display names used in the "Hosted by X" SaaS variant.
+    SAAS_DISPLAY = {
+        'commvault': 'Commvault',
+        'veeam':     'Veeam',
+        'networker': 'Dell',
+        'avamar':    'Dell',
+    }
+
     def __init__(self, vendor='commvault', label=None,
-                 hosted_by_commvault=False):
+                 hosted_by_vendor=False, hosted_by_commvault=None):
         cfg = {**DEFAULT_VENDOR, **VENDOR_CONFIG.get(vendor, {})}
         self.vendor = vendor
         self._ui_src = IMAGES.get(cfg['ui_key']) if cfg['ui_key'] else None
+        # When no UI screenshot exists, fall back to the vendor logo
+        # so the right slot still carries vendor identity.
+        self._logo_src = (IMAGES.get(cfg.get('logo_key'))
+                          if cfg.get('logo_key') else None)
         self.badge = cfg['badge']
         self.badge_fill = cfg['badge_fill']
         # SaaS deployment variant: same UI thumbnail, but the indicator
-        # cluster drops the CommServe server icon + CS badge (since
-        # Commvault hosts those) and keeps only the lock as a visual
-        # cue that this is a managed/secure service. Label changes from
-        # "Commvault Command Center" to "Hosted by Commvault".
-        self.hosted_by_commvault = hosted_by_commvault
-        if label is None and hosted_by_commvault:
-            label = 'Hosted by Commvault'
+        # cluster drops the controller server icon + badge (since the
+        # vendor hosts those) and keeps only the lock as a visual cue
+        # that this is a managed/secure service. Label changes to
+        # "Hosted by <VendorDisplay>". Backwards-compat: the old
+        # `hosted_by_commvault` kwarg still works.
+        if hosted_by_commvault is not None:
+            hosted_by_vendor = bool(hosted_by_commvault)
+        self.hosted_by_commvault = bool(hosted_by_vendor)
+        if label is None and hosted_by_vendor:
+            display = self.SAAS_DISPLAY.get(vendor, vendor.title())
+            label = f'Hosted by {display}'
         self.label = label or cfg['label']
 
     def preferred_size(self):
@@ -126,9 +166,17 @@ class BackupSoftwareStack(Component):
         ui_x = content_x + indicator_w + ui_gap
         ui_w = content_w - indicator_w - ui_gap
 
-        # UI thumbnail (right side)
+        # Right side: UI screenshot if available, else center the vendor
+        # logo in the slot (preserves square aspect — the logo is ~256x256
+        # PNG with transparent padding so it scales cleanly).
         if self._ui_src:
             shapes.append(image(ui_x, content_y, ui_w, content_h, self._ui_src))
+        elif self._logo_src:
+            logo_size = min(content_h * 0.85, ui_w * 0.85)
+            logo_x = ui_x + (ui_w - logo_size) / 2
+            logo_y = content_y + (content_h - logo_size) / 2
+            shapes.append(image(logo_x, logo_y,
+                                logo_size, logo_size, self._logo_src))
 
         # Backup Server cluster (left side):
         #   [ lock ] [ server ]  — lock sits to the LEFT of the server with a

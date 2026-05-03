@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Competitor architectures — visualized in SEEngine</title>
+<style>
+  body {
+    margin: 0; padding: 32px 40px;
+    background: #0a0a10; color: #fff;
+    font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  h2 { font-size: 16px; margin: 32px 0 6px; font-weight: 600; }
+  .lead { color: #b8bccc; max-width: 820px; margin-bottom: 24px; }
+  .lead code { background: #1c1c2a; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 18px; margin: 18px 0;
+  }
+  .card {
+    border: 1px solid #2a2a3a; border-radius: 10px;
+    background: #0e0e16; padding: 14px 14px 8px;
+  }
+  .card h3 {
+    margin: 0 0 6px; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card .pattern {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px;
+    font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  }
+  .pattern.three  { background: #2a1a4a; color: #c4a3ff; }
+  .pattern.hyper  { background: #1a3d3a; color: #82e0d3; }
+  .pattern.both   { background: #3d2a1a; color: #ffc480; }
+  .arch {
+    color: #b8bccc; font-size: 12px; margin: 4px 0 8px;
+  }
+  .arch b { color: white; font-weight: 600; }
+  .preview {
+    background: black; border-radius: 6px;
+    padding: 4px;
+    margin-top: 8px;
+  }
+  .preview iframe {
+    width: 100%; border: none; background: black;
+    height: 360px;
+  }
+  .json {
+    margin-top: 8px;
+    background: #050508; padding: 8px 10px; border-radius: 4px;
+    font-family: ui-monospace, Menlo, Monaco, monospace;
+    font-size: 11px; line-height: 1.5; color: #b8bccc;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .json .k { color: #82e0d3; }
+  .json .s { color: #ffc480; }
+  .summary-table {
+    width: 100%; border-collapse: collapse; margin-top: 18px;
+    font-size: 12px;
+  }
+  .summary-table th, .summary-table td {
+    padding: 8px 10px; border-bottom: 1px solid #2a2a3a;
+    text-align: left; vertical-align: top;
+  }
+  .summary-table th { color: #82e0d3; font-weight: 600; }
+  .summary-table .badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-family: ui-monospace, monospace; font-size: 10px;
+    font-weight: 700;
+  }
+  .badge.cs   { background: #7030A0; color: white; }
+  .badge.vbr  { background: #00B143; color: white; }
+  .badge.nw   { background: #0076CE; color: white; }
+  .badge.av   { background: #0076CE; color: white; }
+  .badge.brik { background: #00B398; color: white; }
+  .badge.node { background: #02A9C7; color: white; }
+  .badge.rs   { background: #E2231A; color: white; }
+  .badge.ma   { background: #7030A0; color: white; }
+  .badge.px   { background: #00B143; color: white; }
+  .badge.sn   { background: #0076CE; color: white; }
+  .badge.dm   { background: #0076CE; color: white; }
+</style>
+</head>
+<body>
+
+<h1>Competitor architectures — visualized</h1>
+<p class="lead">
+  All 6 backup-vendor architectures rendered through SEEngine's component system. Each preview
+  is a live iframe loading <code>/layout</code> via <code>/?scenario=&lt;name&gt;</code>.
+  Use this to (a) verify the vocabulary is right per vendor and (b) compare three-tier vs
+  hyperconverged at a glance.
+</p>
+
+<table class="summary-table">
+  <thead>
+    <tr>
+      <th>Vendor</th>
+      <th>Pattern</th>
+      <th>Controller</th>
+      <th>Data Mover</th>
+      <th>Storage</th>
+      <th>SaaS Plane</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Commvault</b></td>
+      <td>Three-tier</td>
+      <td>CommServe <span class="badge cs">CS</span></td>
+      <td>Media Agent <span class="badge ma">MA</span></td>
+      <td>HSX / Pure / NetApp</td>
+      <td>Commvault Cloud</td>
+    </tr>
+    <tr>
+      <td><b>Veeam</b></td>
+      <td>Three-tier</td>
+      <td>Backup Server <span class="badge vbr">VBR</span></td>
+      <td>Backup Proxy <span class="badge px">PX</span></td>
+      <td>Repository / SOBR</td>
+      <td>Veeam Data Cloud (M365)</td>
+    </tr>
+    <tr>
+      <td><b>NetWorker</b> (Dell)</td>
+      <td>Three-tier</td>
+      <td>NW Server <span class="badge nw">NW</span></td>
+      <td>Storage Node <span class="badge sn">SN</span></td>
+      <td>Data Domain</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><b>Avamar</b> (Dell)</td>
+      <td>Three-tier</td>
+      <td>Avamar Server <span class="badge av">AV</span></td>
+      <td>Data Mover <span class="badge dm">DM</span></td>
+      <td>Avamar Data Store / Data Domain</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><b>Rubrik</b></td>
+      <td>Hyperconverged</td>
+      <td colspan="3"><i>Fused into Brik cluster</i> <span class="badge brik">BRIK</span></td>
+      <td>Polaris / Rubrik Security Cloud</td>
+    </tr>
+    <tr>
+      <td><b>Cohesity</b></td>
+      <td>Hyperconverged</td>
+      <td colspan="3"><i>Fused into DataPlatform cluster</i> <span class="badge node">NODE</span></td>
+      <td>Helios</td>
+    </tr>
+    <tr>
+      <td><b>Unitrends</b></td>
+      <td>Hyperconverged</td>
+      <td colspan="3"><i>Fused into Recovery Series appliance</i> <span class="badge rs">RS</span></td>
+      <td>Unitrends Cloud (DRaaS)</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<h2>Live previews</h2>
+
+<div class="grid">
+
+  <div class="card">
+    <h3>Commvault <span class="pattern three">Three-tier</span></h3>
+    <div class="arch">
+      <b>CommServe</b> orchestrates jobs · <b>Media Agents</b> move data ·
+      <b>HSX/Pure/NetApp</b> stores it. Multi-site replication via dedicated AGP card.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_commvault"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Veeam <span class="pattern three">Three-tier</span></h3>
+    <div class="arch">
+      <b>Backup Server</b> orchestrates · <b>Backup Proxies</b> read from production storage,
+      compress + dedupe, write to <b>Repository</b> (often Pure / Data Domain / generic NAS).
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_veeam"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Dell NetWorker <span class="pattern three">Three-tier</span></h3>
+    <div class="arch">
+      <b>NetWorker Server</b> + <b>NMC</b> orchestrate · <b>Storage Nodes</b> own the device
+      connections (clients can also write directly via ClientDirect) · <b>Data Domain</b>
+      is the typical deduplication target.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_networker"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Dell Avamar <span class="pattern three">Three-tier</span></h3>
+    <div class="arch">
+      <b>Avamar Server</b> orchestrates · <b>Avamar clients</b> do source-side variable-length
+      dedup · <b>Data Movers</b> shuttle to <b>Avamar Data Store</b> or <b>Data Domain</b> for
+      backend storage.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_avamar"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Rubrik <span class="pattern hyper">Hyperconverged</span></h3>
+    <div class="arch">
+      Cluster of 3+ <b>Briks</b> (each = 2U, multiple nodes). All roles fused — control,
+      data movement, dedup, storage all live inside the cluster. Managed via
+      <b>Rubrik Security Cloud</b> (formerly Polaris) SaaS portal.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_rubrik"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Cohesity <span class="pattern hyper">Hyperconverged</span></h3>
+    <div class="arch">
+      <b>DataPlatform</b> — distributed shared-nothing cluster of 3+ nodes running
+      <b>SpanFS</b>. Single converged appliance handling backup + analytics + files.
+      Managed via <b>Helios</b> SaaS portal.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_cohesity"></iframe></div>
+  </div>
+
+  <div class="card">
+    <h3>Unitrends <span class="pattern hyper">Hyperconverged</span></h3>
+    <div class="arch">
+      <b>Recovery Series</b> turnkey appliance — compute + storage + backup software
+      preconfigured. Single appliance for SMB/midmarket. Replicates to <b>Unitrends Cloud</b>
+      for DRaaS.
+    </div>
+    <div class="preview"><iframe src="/?scenario=competitor_unitrends"></iframe></div>
+  </div>
+
+</div>
+
+
+<h2>Architecture-pattern decision tree</h2>
+<p class="lead">
+  When parsing a customer's current state, identify which pattern applies first, then map
+  to the right vendor entry:
+</p>
+<table class="summary-table">
+  <thead>
+    <tr><th>If the customer says…</th><th>Pattern</th><th>Set</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>"We have CommServe / Media Agents / HSX / HyperScale"</td>
+      <td>Three-tier</td>
+      <td><code>backup_software:"commvault"</code> + <code>backup_target:"hsx"|"pure"|"netapp"</code></td>
+    </tr>
+    <tr>
+      <td>"We have Veeam Backup Server / Proxies / Repository / SOBR"</td>
+      <td>Three-tier</td>
+      <td><code>backup_software:"veeam"</code></td>
+    </tr>
+    <tr>
+      <td>"We have NetWorker / Storage Nodes / Data Domain"</td>
+      <td>Three-tier</td>
+      <td><code>backup_software:"networker"</code></td>
+    </tr>
+    <tr>
+      <td>"We have Avamar / Data Movers / Avamar Data Store / DD"</td>
+      <td>Three-tier</td>
+      <td><code>backup_software:"avamar"</code></td>
+    </tr>
+    <tr>
+      <td>"We have Rubrik / Briks / a Rubrik cluster"</td>
+      <td>Hyperconverged</td>
+      <td><code>backup_software:"rubrik"</code> + <code>backup_target:"rubrik"</code></td>
+    </tr>
+    <tr>
+      <td>"We have Cohesity / DataPlatform / Helios"</td>
+      <td>Hyperconverged</td>
+      <td><code>backup_software:"cohesity"</code> + <code>backup_target:"cohesity"</code></td>
+    </tr>
+    <tr>
+      <td>"We have Unitrends / Recovery Series appliance"</td>
+      <td>Hyperconverged</td>
+      <td><code>backup_software:"unitrends"</code> + <code>backup_target:"unitrends"</code></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

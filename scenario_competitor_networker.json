@@ -1,0 +1,13 @@
+{
+  "title": "Current State — Dell NetWorker + Data Domain",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Servers", "NAS"],
+      "vm_count": 180, "storage_tb": 120,
+      "backup_software": "networker", "backup_target": "pure",
+      "media_agents": 3, "retention_days": 30
+    }
+  ]
+}

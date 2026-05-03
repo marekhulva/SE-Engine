@@ -1,0 +1,13 @@
+{
+  "title": "Current State — Rubrik Cluster (managed via Rubrik Security Cloud)",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Servers", "NAS"],
+      "vm_count": 250, "storage_tb": 180,
+      "backup_software": "rubrik", "backup_target": "rubrik",
+      "hsx_nodes": 4, "hsx_tb": 180, "retention_days": 30
+    }
+  ]
+}

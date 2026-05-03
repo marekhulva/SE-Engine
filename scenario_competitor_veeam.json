@@ -1,0 +1,21 @@
+{
+  "title": "Current State — Veeam Backup & Replication",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Servers"],
+      "vm_count": 150, "storage_tb": 90,
+      "backup_software": "veeam", "backup_target": "pure",
+      "media_agents": 3, "retention_days": 30
+    },
+    {
+      "id": "dr", "name": "DR Site",
+      "workloads": ["VMs", "Databases"],
+      "vm_count": 60, "storage_tb": 40,
+      "backup_software": "veeam", "backup_target": "pure",
+      "media_agents": 1, "retention_days": 14
+    }
+  ],
+  "connections": [{"from": "primary", "to": "dr", "speed": "Replication"}]
+}

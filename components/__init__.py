@@ -8,6 +8,7 @@ from .clients_box import ClientsAndStorage
 from .backup_stack import BackupSoftwareStack
 from .hsx_table import HSXTable
 from .pure_target import PureStorageTarget
+from .cluster_appliance import ClusterAppliance, HYPER_VENDORS, is_hyperconverged
 from .protected_layer import ProtectedDataLayer
 from .backup_destinations import BackupDestinationsLayer
 from .status_label import ProtectionStatus
@@ -28,7 +29,7 @@ __all__ = [
     'COLORS', 'IMAGES', 'FONT', 'SPACE',
     'VStack', 'HStack',
     'WorkloadChip', 'HeaderBar', 'ClientsAndStorage',
-    'BackupSoftwareStack', 'HSXTable', 'PureStorageTarget',
+    'BackupSoftwareStack', 'HSXTable', 'PureStorageTarget', 'ClusterAppliance',
     'ProtectedDataLayer', 'BackupDestinationsLayer',
     'ProtectionStatus', 'Callout', 'OnPremSite', 'CloudSite',
     'SaaSApplicationsBox', 'SaaSSite', 'SaaSAppCard',

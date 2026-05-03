@@ -13,13 +13,14 @@ Stacks (top to bottom):
   Callout (below container — "All Backups Immutable", etc.)
 """
 from .base import Component, rect, text
-from .tokens import COLORS
+from .tokens import COLORS, VENDOR_ARCH
 from .layout_helpers import VStack, HStack
 from .clients_box import ClientsAndStorage
 from .backup_stack import BackupSoftwareStack
 from .media_agent import MediaAgent
 from .protected_layer import ProtectedDataLayer
 from .backup_destinations import BackupDestinationsLayer
+from .cluster_appliance import is_hyperconverged
 from .callout import Callout
 
 
@@ -40,13 +41,31 @@ class OnPremSite(Component):
                  backup_software='commvault', backup_target='hsx',
                  hsx_nodes=3, hsx_tb=150, retention_days=None,
                  media_agents=None, callout=None,
-                 ma_badge='MA', ma_label_singular='Media Agent',
-                 ma_label_plural='Media Agents',
+                 ma_badge=None, ma_label_singular=None,
+                 ma_label_plural=None,
                  deployment='software',
                  destinations=None,
                  **_extra):
         self.name = name
-        self.is_commvault = (backup_software == 'commvault')
+        # `is_commvault` historically gated all the in-site backup-card
+        # rendering. With multi-vendor support, gate on "is a known three-
+        # tier vendor" instead — Commvault, Veeam, NetWorker, Avamar all
+        # render the same overall layout (CS card + MAs + storage), only
+        # the labels/badges/colors differ.
+        vendor_key = (backup_software or 'commvault').lower()
+        self.is_commvault = (vendor_key == 'commvault')
+        self._is_three_tier_vendor = vendor_key in VENDOR_ARCH
+
+        # Auto-derive MA badge + labels from the vendor architecture map
+        # if the caller didn't pass explicit overrides. Cloud sites still
+        # override these via CloudSite (passes 'GW' + 'Gateway').
+        arch = VENDOR_ARCH.get(vendor_key, VENDOR_ARCH['commvault'])
+        if ma_badge is None:
+            ma_badge = arch['ma_badge']
+        if ma_label_singular is None:
+            ma_label_singular = arch['ma_label_singular']
+        if ma_label_plural is None:
+            ma_label_plural = arch['ma_label_plural']
         # 'saas' = Commvault hosts CommServe + Command Center; this site has
         # no in-site CS card, only Gateways. The CommvaultCloudCard at the
         # top of the diagram is what shows the hosted control plane and
@@ -60,10 +79,17 @@ class OnPremSite(Component):
         # many MAs — default 1 when non-HSX, 0 when HSX.
         no_local_storage = backup_target in (None, 'none', 'cloud')
 
-        if backup_target == 'hsx':
+        # Hyperconverged backup targets (Rubrik / Cohesity / Unitrends) fuse
+        # controller + data mover + storage into one cluster appliance —
+        # there's no separate CommServe-equivalent or Media-Agent-equivalent
+        # to draw next to it. The cluster IS everything.
+        self._is_hyperconverged = is_hyperconverged(backup_target)
+
+        if backup_target == 'hsx' or self._is_hyperconverged:
             ma_count = 0
         elif media_agents is None:
-            ma_count = 1 if self.is_commvault else 0
+            # All three-tier vendors need at least one data mover by default.
+            ma_count = 1 if self._is_three_tier_vendor else 0
         else:
             ma_count = max(0, int(media_agents))
 
@@ -74,15 +100,18 @@ class OnPremSite(Component):
         # Gateways still live in-site because they're how Commvault reaches
         # the customer's data.
         hosted = self.deployment == 'saas'
+        # Hyperconverged sites suppress the Command-Center / data-mover row
+        # entirely — the ClusterAppliance below carries all those roles.
         command_center_row = (
             HStack([BackupSoftwareStack(vendor=backup_software,
-                                        hosted_by_commvault=hosted),
+                                        hosted_by_vendor=hosted),
                     MediaAgent(count=ma_count, badge=ma_badge,
                                label_singular=ma_label_singular,
                                label_plural=ma_label_plural)
                     if ma_count > 0 else None],
                    gap=0.10, align='center')
-            if self.is_commvault else None
+            if (self._is_three_tier_vendor and not self._is_hyperconverged)
+            else None
         )
 
         # Cloud sites pass `destinations: {native: [...], agp: [...]}` instead
@@ -105,7 +134,8 @@ class OnPremSite(Component):
             ProtectedDataLayer(target_kind=backup_target,
                                is_commvault=self.is_commvault,
                                hsx_nodes=hsx_nodes, hsx_tb=hsx_tb,
-                               retention_days=retention_days)
+                               retention_days=retention_days,
+                               deployment=self.deployment)
             if not no_local_storage else None,
         ]
         self._inner = VStack([c for c in children if c], gap=self.CHILD_GAP, align='stretch')

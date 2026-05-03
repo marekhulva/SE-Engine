@@ -1,0 +1,21 @@
+{
+  "title": "Current State — Commvault Software (3 sites + AGP)",
+  "unity": false,
+  "sites": [
+    {
+      "id": "primary", "name": "Primary DC",
+      "workloads": ["VMs", "Databases", "File Servers"],
+      "vm_count": 200, "storage_tb": 150,
+      "backup_software": "commvault", "backup_target": "hsx",
+      "hsx_nodes": 4, "hsx_tb": 200, "retention_days": 30
+    },
+    {
+      "id": "dr", "name": "DR Site",
+      "workloads": ["VMs", "Databases"],
+      "vm_count": 80, "storage_tb": 60,
+      "backup_software": "commvault", "backup_target": "pure",
+      "media_agents": 2, "retention_days": 14
+    }
+  ],
+  "connections": [{"from": "primary", "to": "dr", "speed": "Replication"}]
+}

@@ -230,13 +230,20 @@
       .catch(e => { status.textContent = 'Error: ' + e.message; });
   }
 
-  // Load current scenario from server and auto-render
-  fetch('/scenario')
-    .then(r => r.text())
-    .then(txt => {
-      document.getElementById('scenario').value = txt;
-      generate();
-    });
+  // Load current scenario from server and auto-render. Supports a
+  // `?scenario=<name>` URL query param so the demo HTML pages can
+  // embed live previews via iframe by linking to /?scenario=<name>.
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const named = params.get('scenario');
+    const url = named ? '/scenario/' + encodeURIComponent(named) : '/scenario';
+    fetch(url)
+      .then(r => r.text())
+      .then(txt => {
+        document.getElementById('scenario').value = txt;
+        generate();
+      });
+  })();
 
   function px(inches) { return inches * PX; }
 

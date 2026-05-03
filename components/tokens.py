@@ -31,6 +31,12 @@ IMAGES = {
     'm365':              'extracted/slide6_Picture_2_cc4a9c1c.png',
     # Backup vendor UI screenshots (used by BackupSoftwareStack card)
     'commvault_ui':      'vendor-ui/commvault.png',
+    # Vendor logos used as fallback when a vendor has no UI screenshot
+    # (synced via scripts/sync_icons.py from Iconify).
+    'veeam_logo':        'icons/vendor/veeam.png',
+    'dell_logo':         'icons/vendor/dell.png',
+    'cisco_logo':        'icons/vendor/cisco.png',
+    'netapp_logo':       'icons/vendor/netapp.png',
     # Commvault Unity dashboard thumbnail (used by UnityCard)
     'unity_ui':          'vendor-ui/unity_ui.png',
     # Shared CommServe / backup-server indicator pieces
@@ -96,6 +102,46 @@ CHIP_ICON = {
     'google workspace':    'saas_google_workspace',
     'gsuite':              'saas_google_workspace',
     'g suite':             'saas_google_workspace',
+}
+
+# ─────────── Per-vendor architecture vocabulary ───────────
+# Each vendor has its own naming for the controller (CommServe-equivalent)
+# and the data movers (Media-Agent-equivalent). The renderer uses these
+# labels and badges to title the in-site Backup Software Stack card and
+# the row of data-mover server icons next to it. Keep keys lowercase.
+#
+# Hyperconverged vendors (rubrik, cohesity, unitrends) intentionally
+# don't appear here — they fuse all three roles into a cluster appliance
+# rendered by ClusterAppliance, so the three-tier vocabulary doesn't apply.
+VENDOR_ARCH = {
+    'commvault': {
+        'cs_badge': 'CS',
+        'cs_label': 'Commvault Command Center',
+        'ma_badge': 'MA',
+        'ma_label_singular': 'Media Agent',
+        'ma_label_plural':   'Media Agents',
+    },
+    'veeam': {
+        'cs_badge': 'VBR',
+        'cs_label': 'Veeam Backup Server',
+        'ma_badge': 'PX',
+        'ma_label_singular': 'Backup Proxy',
+        'ma_label_plural':   'Backup Proxies',
+    },
+    'networker': {
+        'cs_badge': 'NW',
+        'cs_label': 'NetWorker Server',
+        'ma_badge': 'SN',
+        'ma_label_singular': 'Storage Node',
+        'ma_label_plural':   'Storage Nodes',
+    },
+    'avamar': {
+        'cs_badge': 'AV',
+        'cs_label': 'Avamar Server',
+        'ma_badge': 'DM',
+        'ma_label_singular': 'Data Mover',
+        'ma_label_plural':   'Data Movers',
+    },
 }
 
 FONT = 'Arial'
