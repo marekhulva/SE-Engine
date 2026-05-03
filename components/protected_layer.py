@@ -19,6 +19,7 @@ from .header_bar import HeaderBar
 from .hsx_table import HSXTable
 from .pure_target import PureStorageTarget
 from .netapp_target import NetAppTarget
+from .data_domain_target import DataDomainTarget
 from .cluster_appliance import ClusterAppliance, is_hyperconverged
 from .status_label import ProtectionStatus
 
@@ -28,6 +29,11 @@ def make_target(kind, **kwargs):
         return PureStorageTarget()
     if kind == 'netapp':
         return NetAppTarget()
+    if kind in ('data_domain', 'datadomain', 'dd'):
+        # Dell EMC PowerProtect Data Domain — typical NetWorker / Avamar
+        # dedup backend (via DD Boost). Accept a few aliases for parser
+        # ergonomics.
+        return DataDomainTarget()
     if is_hyperconverged(kind):
         # Rubrik / Cohesity / Unitrends — the cluster IS the controller +
         # data movers + storage. Entire site in-container layout collapses

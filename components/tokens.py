@@ -37,6 +37,7 @@ IMAGES = {
     'dell_logo':         'icons/vendor/dell.png',
     'cisco_logo':        'icons/vendor/cisco.png',
     'netapp_logo':       'icons/vendor/netapp.png',
+    'data_domain_logo':  'icons/vendor/data_domain.png',
     # Commvault Unity dashboard thumbnail (used by UnityCard)
     'unity_ui':          'vendor-ui/unity_ui.png',
     # Shared CommServe / backup-server indicator pieces

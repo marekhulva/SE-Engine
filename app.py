@@ -47,15 +47,18 @@ Output ONLY valid JSON. No explanation, no markdown fences, no commentary — ju
   // from backup_software. For hyperconverged vendors, the in-site Command-Center card and data-mover row
   // are suppressed entirely — only the ClusterAppliance renders.
 
-  "backup_target": "hsx" | "pure" | "netapp" | "rubrik" | "cohesity" | "unitrends" | "none",
+  "backup_target": "hsx" | "pure" | "netapp" | "data_domain" | "rubrik" | "cohesity" | "unitrends" | "none",
   // backup_target rules:
-  //   "hsx"       — Commvault HyperScale X appliance on-prem (most common). Has MA built in.
-  //   "pure"      — Pure Storage FlashArray. Pairs with any three-tier vendor (Commvault, Veeam, NetWorker, Avamar).
-  //   "netapp"    — NetApp storage as backup target. Pairs with any three-tier vendor.
-  //   "rubrik"    — Rubrik cluster as the storage layer. Set backup_software='rubrik' too.
-  //   "cohesity"  — Cohesity cluster as the storage layer. Set backup_software='cohesity' too.
-  //   "unitrends" — Unitrends Recovery Series appliance. Set backup_software='unitrends' too.
-  //   "none"      — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent.
+  //   "hsx"          — Commvault HyperScale X appliance on-prem (most common). Has MA built in.
+  //   "pure"         — Pure Storage FlashArray. Pairs with any three-tier vendor (Commvault, Veeam, NetWorker, Avamar).
+  //   "netapp"       — NetApp storage as backup target. Pairs with any three-tier vendor.
+  //   "data_domain"  — Dell EMC PowerProtect Data Domain. The DEFAULT target for NetWorker and Avamar
+  //                    (both integrate via DD Boost). Use whenever user says: "Data Domain", "DD",
+  //                    "DD9900", "PowerProtect DD", "Dell Data Domain".
+  //   "rubrik"       — Rubrik cluster as the storage layer. Set backup_software='rubrik' too.
+  //   "cohesity"     — Cohesity cluster as the storage layer. Set backup_software='cohesity' too.
+  //   "unitrends"    — Unitrends Recovery Series appliance. Set backup_software='unitrends' too.
+  //   "none"         — NO on-prem backup storage; data goes directly to cloud/AGP via Media Agent.
   //                 Use when user says: "no on-prem storage", "direct to cloud", "cloud-first".
   // RULE: For hyperconverged vendors (rubrik/cohesity/unitrends), backup_software AND backup_target should
   //       MATCH (both = 'rubrik' for example). The cluster IS both the software and the storage.

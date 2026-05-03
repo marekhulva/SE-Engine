@@ -6,7 +6,7 @@
       "id": "primary", "name": "Primary DC",
       "workloads": ["VMs", "Databases", "File Servers"],
       "vm_count": 200, "storage_tb": 80,
-      "backup_software": "avamar", "backup_target": "pure",
+      "backup_software": "avamar", "backup_target": "data_domain",
       "media_agents": 2, "retention_days": 30
     }
   ]

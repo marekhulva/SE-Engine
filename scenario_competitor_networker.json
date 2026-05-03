@@ -6,7 +6,7 @@
       "id": "primary", "name": "Primary DC",
       "workloads": ["VMs", "Databases", "File Servers", "NAS"],
       "vm_count": 180, "storage_tb": 120,
-      "backup_software": "networker", "backup_target": "pure",
+      "backup_software": "networker", "backup_target": "data_domain",
       "media_agents": 3, "retention_days": 30
     }
   ]
