@@ -21,7 +21,7 @@ The Fabric.js canvas uses content_w/h to set an initial fit-to-screen zoom.
 The PPTX renderer scales the whole layout to fit a 13.33×7.5 slide.
 """
 import re
-from components import OnPremSite, CloudSite, SaaSSite, SaaSAppCard, Connection, AGPZone, UnityCard, COLORS
+from components import OnPremSite, CloudSite, SaaSSite, SaaSAppCard, Connection, AGPZone, UnityCard, CommvaultCloudCard, COLORS
 from components.saas_agp_card import SaaSAGPCard
 from components.base import text, line, oval
 from components.connection import Connection as _ConnStyle

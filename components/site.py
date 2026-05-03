@@ -19,6 +19,7 @@ from .clients_box import ClientsAndStorage
 from .backup_stack import BackupSoftwareStack
 from .media_agent import MediaAgent
 from .protected_layer import ProtectedDataLayer
+from .backup_destinations import BackupDestinationsLayer
 from .callout import Callout
 
 
@@ -41,9 +42,17 @@ class OnPremSite(Component):
                  media_agents=None, callout=None,
                  ma_badge='MA', ma_label_singular='Media Agent',
                  ma_label_plural='Media Agents',
+                 deployment='software',
+                 destinations=None,
                  **_extra):
         self.name = name
         self.is_commvault = (backup_software == 'commvault')
+        # 'saas' = Commvault hosts CommServe + Command Center; this site has
+        # no in-site CS card, only Gateways. The CommvaultCloudCard at the
+        # top of the diagram is what shows the hosted control plane and
+        # connects to this site via dashed control-plane lines.
+        # 'software' = customer hosts everything on their own infra (default).
+        self.deployment = (deployment or 'software').lower()
 
         # HSX appliances have Media Agent built in; any other target
         # needs N standalone Media Agent indicators sitting to the right
@@ -58,8 +67,16 @@ class OnPremSite(Component):
         else:
             ma_count = max(0, int(media_agents))
 
+        # SaaS deployments still render the in-site backup-software card,
+        # but in "Hosted by Commvault" mode: same UI thumbnail (Commvault
+        # Command Center), only a lock icon in the indicator slot (no in-
+        # site CommServe + CS badge), and label "Hosted by Commvault".
+        # Gateways still live in-site because they're how Commvault reaches
+        # the customer's data.
+        hosted = self.deployment == 'saas'
         command_center_row = (
-            HStack([BackupSoftwareStack(vendor=backup_software),
+            HStack([BackupSoftwareStack(vendor=backup_software,
+                                        hosted_by_commvault=hosted),
                     MediaAgent(count=ma_count, badge=ma_badge,
                                label_singular=ma_label_singular,
                                label_plural=ma_label_plural)
@@ -68,10 +85,23 @@ class OnPremSite(Component):
             if self.is_commvault else None
         )
 
+        # Cloud sites pass `destinations: {native: [...], agp: [...]}` instead
+        # of an on-prem backup_target. Build a BackupDestinationsLayer from
+        # that, otherwise use the on-prem ProtectedDataLayer (or neither when
+        # backup_target='none' and no destinations are provided).
+        dest_layer = None
+        if destinations and (destinations.get('native') or destinations.get('agp')):
+            dest_layer = BackupDestinationsLayer(
+                native_tiers=destinations.get('native'),
+                agp_tiers=destinations.get('agp'),
+                cloud_provider=destinations.get('cloud_provider', 'aws'),
+            )
+
         children = [
             ClientsAndStorage(workloads or ['VMs'], vm_count, storage_tb,
                               is_commvault=self.is_commvault),
             command_center_row,
+            dest_layer,
             ProtectedDataLayer(target_kind=backup_target,
                                is_commvault=self.is_commvault,
                                hsx_nodes=hsx_nodes, hsx_tb=hsx_tb,
@@ -111,7 +141,9 @@ class OnPremSite(Component):
                    hsx_tb=d.get('hsx_tb', 150),
                    retention_days=d.get('retention_days'),
                    media_agents=d.get('media_agents'),
-                   callout=d.get('callout'))
+                   callout=d.get('callout'),
+                   deployment=d.get('deployment', 'software'),
+                   destinations=d.get('destinations'))
 
     def preferred_size(self):
         inner_w, inner_h = self._inner.preferred_size()

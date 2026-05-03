@@ -9,6 +9,7 @@ from .backup_stack import BackupSoftwareStack
 from .hsx_table import HSXTable
 from .pure_target import PureStorageTarget
 from .protected_layer import ProtectedDataLayer
+from .backup_destinations import BackupDestinationsLayer
 from .status_label import ProtectionStatus
 from .callout import Callout
 from .site import OnPremSite
@@ -20,6 +21,7 @@ from .saas_agp_card import SaaSAGPCard
 from .connection import Connection
 from .agp import AGPZone, AGPBlock, CloudCleanroom, AirGapBreak
 from .unity_card import UnityCard
+from .commvault_cloud_card import CommvaultCloudCard
 
 __all__ = [
     'Component', 'rect', 'text', 'oval', 'image', 'line',
@@ -27,9 +29,10 @@ __all__ = [
     'VStack', 'HStack',
     'WorkloadChip', 'HeaderBar', 'ClientsAndStorage',
     'BackupSoftwareStack', 'HSXTable', 'PureStorageTarget',
-    'ProtectedDataLayer', 'ProtectionStatus', 'Callout', 'OnPremSite', 'CloudSite',
+    'ProtectedDataLayer', 'BackupDestinationsLayer',
+    'ProtectionStatus', 'Callout', 'OnPremSite', 'CloudSite',
     'SaaSApplicationsBox', 'SaaSSite', 'SaaSAppCard',
     'Connection',
     'AGPZone', 'AGPBlock', 'CloudCleanroom', 'AirGapBreak',
-    'UnityCard',
+    'UnityCard', 'CommvaultCloudCard',
 ]

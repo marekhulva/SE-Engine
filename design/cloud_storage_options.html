@@ -1,0 +1,1035 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cloud backup destinations — design options</title>
+<style>
+  :root {
+    --bg:        #0a0a10;
+    --bg-card:   #0e0e16;
+    --bg-card-2: #14141d;
+    --line:      #2a2a3a;
+    --line-2:    #3c3f48;
+    --text:      #ffffff;
+    --text-mute: #b8bccc;
+    --text-dim:  #6a6e80;
+    --purple:    #7030A0;
+    --purple-2:  #834895;
+    --purple-soft:#3a1a55;
+    --aws:       #FF9900;
+    --aws-soft:  #4a2a08;
+    --agp:       #8a52d6;
+    --agp-soft:  #2c1647;
+    --ok:        #00B050;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 40px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .lead { color: var(--text-mute); margin: 0 0 36px; max-width: 880px; }
+  .lead code { background: #1c1c2a; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+  .option {
+    margin-bottom: 56px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .option:last-child { border-bottom: none; }
+  .option-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+  .option-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .option-head .pros, .option-head .cons {
+    font-size: 12px; color: var(--text-mute);
+  }
+  .option-head .pros::before { content: '✓ '; color: var(--ok); }
+  .option-head .cons::before { content: '— '; color: var(--text-dim); }
+  .option-note { color: var(--text-mute); font-size: 13px; margin: 0 0 14px; max-width: 720px; }
+
+  /* ─────────── Cloud-site mock container (mirrors CloudSite) ─────────── */
+  .site {
+    width: 720px;
+    border: 1px solid var(--aws);
+    border-radius: 10px;
+    background: transparent;
+    padding: 18px 18px 14px;
+  }
+  .site-label {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .site-label img { width: 28px; height: 28px; }
+  .site-label .name { font-weight: 700; font-size: 16px; }
+  .site-label .pill {
+    background: var(--aws); color: white;
+    padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+  }
+  .site-underline {
+    height: 3px; background: var(--aws);
+    width: 240px; margin: 6px auto 16px;
+  }
+
+  /* Workloads sub-zone */
+  .workloads {
+    border: 1px solid var(--line); background: var(--bg-card);
+    border-radius: 6px; padding: 0;
+  }
+  .workloads-head {
+    background: linear-gradient(180deg, #7843A0, #04031C);
+    font-size: 11px; font-weight: 700; padding: 5px 10px;
+    border-radius: 6px 6px 0 0;
+  }
+  .chips {
+    display: flex; gap: 8px; padding: 12px; justify-content: center;
+  }
+  .chip {
+    width: 60px; text-align: center; font-size: 9px; color: var(--text);
+  }
+  .chip img { width: 32px; height: 32px; display: block; margin: 0 auto 4px; }
+  .summary {
+    text-align: center; padding: 4px 0 10px;
+    font-size: 11px; color: var(--text);
+  }
+
+  /* CC + Gateway row (just visual stand-in) */
+  .cc-row {
+    display: flex; gap: 10px; justify-content: center;
+    margin: 12px 0 16px;
+  }
+  .cc-card {
+    width: 180px; height: 64px;
+    border: 1px solid var(--line-2); background: var(--bg-card);
+    border-radius: 6px; display: flex; align-items: center;
+    padding: 0 10px; gap: 8px;
+  }
+  .cc-card .lock { font-size: 22px; }
+  .cc-card .ui {
+    flex: 1; height: 36px;
+    background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
+    border-radius: 3px;
+    background-size: cover;
+  }
+  .cc-card .label {
+    position: relative; font-size: 8px; color: var(--text-mute);
+    text-align: center;
+  }
+  .cc-label {
+    text-align: center; font-size: 8px; color: var(--text); margin-top: -8px;
+  }
+  .gw-cluster {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .gw-cluster .gw {
+    width: 36px; height: 36px;
+    background: url("/assets/vendor-icons/cs_server.png") center/contain no-repeat;
+    position: relative;
+  }
+  .gw-cluster .gw::after {
+    content: 'GW';
+    position: absolute; bottom: -2px; right: -2px;
+    width: 14px; height: 14px;
+    background: var(--purple); border: 0.5px solid white; color: white;
+    border-radius: 50%; font-size: 6px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gw-label { font-size: 8px; text-align: center; color: var(--text); }
+
+
+  /* ─────────── OPTION 1: side-by-side parallel cards ─────────── */
+  .opt1-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-top: 4px;
+  }
+  .opt1-card {
+    border-radius: 8px; padding: 10px 12px;
+    background: var(--bg-card-2);
+  }
+  .opt1-card.native { border: 1px solid var(--aws); }
+  .opt1-card.agp    { border: 1px solid var(--agp); }
+  .opt1-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .opt1-card-head .title { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+  .opt1-card.native .title { color: var(--aws); }
+  .opt1-card.agp    .title { color: var(--agp); }
+  .opt1-card-head .badge {
+    font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 8px;
+  }
+  .opt1-card.native .badge { background: var(--aws-soft); color: var(--aws); }
+  .opt1-card.agp    .badge { background: var(--agp-soft); color: var(--agp); }
+  .tier-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-row img { width: 24px; height: 24px; }
+  .tier-row .tier-name { flex: 1; font-size: 12px; font-weight: 600; }
+  .tier-row .tier-vol  { font-size: 12px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+  .agp-tier-icon {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: white;
+  }
+  .agp-tier-icon.hot  { background: linear-gradient(135deg, #ff6a3d, #c0392b); }
+  .agp-tier-icon.cool { background: linear-gradient(135deg, #4aa3df, #2c6fa6); }
+
+
+  /* ─────────── OPTION 2: stacked layers (vertical Protected Data Layer style) ─────────── */
+  .opt2-stack {
+    border: 1px solid var(--line-2); border-radius: 8px;
+    overflow: hidden; background: var(--bg-card);
+  }
+  .opt2-band {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .opt2-band:last-child { border-bottom: none; }
+  .opt2-band .band-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+    width: 90px; text-transform: uppercase;
+  }
+  .opt2-band.native .band-tag { color: var(--aws); }
+  .opt2-band.agp    .band-tag { color: var(--agp); }
+  .opt2-band.native { background: linear-gradient(90deg, var(--aws-soft), transparent 40%); }
+  .opt2-band.agp    { background: linear-gradient(90deg, var(--agp-soft), transparent 40%); }
+  .opt2-tiles {
+    display: flex; gap: 10px; flex: 1;
+  }
+  .opt2-tile {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-card-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .opt2-tile img, .opt2-tile .agp-tier-icon { width: 22px; height: 22px; }
+  .opt2-tile .vol { color: var(--text-mute); }
+
+
+  /* ─────────── OPTION 3: tier pills in a single horizontal row ─────────── */
+  .opt3-pills {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding: 10px;
+    border: 1px dashed var(--line-2); border-radius: 8px; background: var(--bg-card);
+  }
+  .opt3-pills .grouplabel {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.7px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding-right: 6px;
+  }
+  .opt3-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .opt3-pill.native { background: var(--aws-soft); color: var(--aws); border: 1px solid var(--aws); }
+  .opt3-pill.agp    { background: var(--agp-soft); color: var(--agp); border: 1px solid var(--agp); }
+  .opt3-pill img { width: 14px; height: 14px; }
+  .opt3-pill .vol { color: var(--text); font-weight: 500; }
+  .opt3-divider {
+    width: 1px; height: 18px; background: var(--line-2);
+    margin: 0 4px;
+  }
+
+
+  /* ─────────── OPTION 4: unified backup-destinations block ─────────── */
+  .opt4-wrap {
+    border: 1px solid var(--purple-2); background: var(--bg-card-2);
+    border-radius: 8px; padding: 0;
+  }
+  .opt4-head {
+    background: linear-gradient(180deg, #7843A0, #04031C);
+    font-size: 11px; font-weight: 700; padding: 5px 10px;
+  }
+  .opt4-zones {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 10px;
+  }
+  .opt4-zone {
+    background: var(--bg-card); border-radius: 6px; padding: 8px 10px;
+  }
+  .opt4-zone .zhead {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .opt4-zone.native .zhead { color: var(--aws); }
+  .opt4-zone.agp    .zhead { color: var(--agp); }
+  .opt4-zone .zdot { width: 8px; height: 8px; border-radius: 50%; }
+  .opt4-zone.native .zdot { background: var(--aws); }
+  .opt4-zone.agp    .zdot { background: var(--agp); }
+  .opt4-zone .tier-row { padding: 4px 0; border-color: rgba(255,255,255,0.06); }
+  .opt4-zone .tier-row:last-child { border: none; }
+
+
+  /* ─────────── FINAL: Option 2 native + secure AGP variants ─────────── */
+  /* The native band reuses .opt2-band.native unchanged. The AGP band swaps
+     the bland "H"/"C" tier dots for tiles that echo the existing AGP card
+     visual: cloud silhouette + shield + lock + bolt to communicate
+     "isolated, immutable, secure" */
+
+  /* Variant A — horizontal mini-cards mirroring AGP card composition */
+  .agp-band {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(90deg, var(--agp-soft), transparent 40%);
+    border-bottom: none;
+  }
+  .agp-band .band-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+    width: 90px; text-transform: uppercase;
+    color: var(--agp);
+  }
+  .agp-tiles { display: flex; gap: 10px; flex: 1; }
+
+  /* Variant A tile — wide horizontal "AGP cloud card" mini */
+  .agp-tile-a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px 8px 8px;
+    background: linear-gradient(135deg, #1c0f33 0%, #0a0612 100%);
+    border: 1px solid var(--agp);
+    border-radius: 8px;
+    position: relative; overflow: hidden;
+  }
+  .agp-tile-a .cloud-bg {
+    position: absolute; right: -10px; top: -8px; width: 80px; height: 80px;
+    background: url("/assets/vendor-icons/agp_cloud.png") center/contain no-repeat;
+    opacity: 0.18;
+  }
+  .agp-tile-a .secure-stack {
+    position: relative; width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1;
+  }
+  .agp-tile-a .secure-stack .shield {
+    width: 32px; height: 32px;
+    background: url("/assets/vendor-icons/agp_shield.png") center/contain no-repeat;
+  }
+  .agp-tile-a .secure-stack .lock {
+    position: absolute; right: -4px; bottom: -2px;
+    width: 16px; height: 16px;
+    background: url("/assets/vendor-icons/cs_lock.png") center/contain no-repeat;
+    filter: drop-shadow(0 0 2px #000);
+  }
+  .agp-tile-a .meta {
+    z-index: 1; min-width: 0;
+  }
+  .agp-tile-a .tier-tag {
+    display: inline-block;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    padding: 2px 7px; border-radius: 8px;
+    color: white;
+    margin-bottom: 2px;
+  }
+  .agp-tile-a .tier-tag.hot  { background: linear-gradient(135deg, #ff6a3d, #c0392b); }
+  .agp-tile-a .tier-tag.cool { background: linear-gradient(135deg, #4aa3df, #2c6fa6); }
+  .agp-tile-a .tname { font-size: 12px; font-weight: 600; }
+  .agp-tile-a .tvol  { font-size: 11px; color: var(--text-mute); }
+
+  /* Variant B tile — vertical stack: cloud on top, shield+lock middle, label bottom */
+  .agp-tile-b {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #1c0f33 0%, #0a0612 100%);
+    border: 1px solid var(--agp);
+    border-radius: 8px;
+    min-width: 130px;
+    position: relative; overflow: hidden;
+  }
+  .agp-tile-b .cloudshape {
+    position: relative;
+    width: 70px; height: 36px;
+    background: url("/assets/vendor-icons/agp_cloud.png") center/contain no-repeat;
+    margin-bottom: 4px;
+  }
+  .agp-tile-b .cloudshape .shield {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -45%);
+    width: 22px; height: 22px;
+    background: url("/assets/vendor-icons/agp_shield.png") center/contain no-repeat;
+  }
+  .agp-tile-b .cloudshape .lock {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(15%, -10%);
+    width: 12px; height: 12px;
+    background: url("/assets/vendor-icons/cs_lock.png") center/contain no-repeat;
+    filter: drop-shadow(0 0 1.5px #000);
+  }
+  .agp-tile-b .tier-row-b {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+  }
+  .agp-tile-b .tier-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .agp-tile-b .tier-dot.hot  { background: linear-gradient(135deg, #ff6a3d, #c0392b); }
+  .agp-tile-b .tier-dot.cool { background: linear-gradient(135deg, #4aa3df, #2c6fa6); }
+  .agp-tile-b .vol { font-size: 11px; color: var(--text-mute); margin-top: 1px; }
+
+  /* Variant C tile — single grand AGP card per tier with bolt+firewall accents */
+  .agp-tile-c {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 10px; align-items: center;
+    padding: 10px 12px;
+    background:
+      linear-gradient(135deg, rgba(112,48,160,0.18), rgba(0,0,0,0)) ,
+      linear-gradient(180deg, #1c0f33 0%, #0a0612 100%);
+    border: 1px solid var(--agp);
+    border-radius: 8px;
+    position: relative; overflow: hidden;
+  }
+  .agp-tile-c .secure-cluster {
+    position: relative; width: 70px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .agp-tile-c .secure-cluster .cloud {
+    position: absolute; left: 0; top: 0;
+    width: 70px; height: 56px;
+    background: url("/assets/vendor-icons/agp_cloud.png") center/contain no-repeat;
+  }
+  .agp-tile-c .secure-cluster .shield {
+    position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%);
+    width: 28px; height: 28px;
+    background: url("/assets/vendor-icons/agp_shield.png") center/contain no-repeat;
+  }
+  .agp-tile-c .secure-cluster .lock {
+    position: absolute; right: 4px; bottom: 6px;
+    width: 16px; height: 16px;
+    background: url("/assets/vendor-icons/cs_lock.png") center/contain no-repeat;
+    filter: drop-shadow(0 0 2px #000);
+  }
+  .agp-tile-c .secure-cluster .bolt {
+    position: absolute; left: -4px; top: 4px;
+    width: 12px; height: 18px;
+    background: url("/assets/vendor-icons/agp_bolt.png") center/contain no-repeat;
+  }
+  .agp-tile-c .meta { display: flex; flex-direction: column; gap: 2px; }
+  .agp-tile-c .tname-row { display: flex; align-items: center; gap: 6px; }
+  .agp-tile-c .tname { font-size: 13px; font-weight: 700; }
+  .agp-tile-c .ttag {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px; border-radius: 8px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    color: white;
+  }
+  .agp-tile-c .ttag.hot  { background: linear-gradient(135deg, #ff6a3d, #c0392b); }
+  .agp-tile-c .ttag.cool { background: linear-gradient(135deg, #4aa3df, #2c6fa6); }
+  .agp-tile-c .tvol { font-size: 11px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+  .agp-tile-c .immutable {
+    font-size: 9px; color: var(--ok); margin-top: 2px; letter-spacing: 0.3px;
+  }
+  .agp-tile-c .immutable::before { content: '🔒 '; }
+
+
+  /* ─────────── Single-target variant grid (compact) ─────────── */
+  .variants {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-top: 18px;
+  }
+  .variants .variant-label {
+    font-size: 11px; font-weight: 600; color: var(--text-mute);
+    margin-bottom: 6px; letter-spacing: 0.4px; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<h1>Cloud backup destinations — 4 design options</h1>
+<p class="lead">
+  Same scenario in each: AWS Production with EC2/S3/RDS/Lambda workloads + 2 Gateways. Backup goes to
+  <code>Native S3 (Standard 80 TB · Glacier 200 TB)</code> AND
+  <code>Air Gap Protect (Hot 50 TB · Cool 150 TB)</code>.
+  Each option shows the BOTH case as the headline, with mini "Native-only" / "AGP-only" variants below.
+  Compare and pick.
+</p>
+
+
+<!-- ════════════════ OPTION 1 ════════════════ -->
+<section class="option">
+  <div class="option-head">
+    <h2>Option 1 — Two parallel cards, side by side</h2>
+    <span class="pros">parallel structure, equal weight, easy scan</span>
+    <span class="cons">takes horizontal width</span>
+  </div>
+  <p class="option-note">
+    Two equal-size sibling cards tucked under the Command-Center / Gateway row. AWS-orange border
+    on the native card, purple on the AGP card. When only one destination exists, render only its card.
+  </p>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt1-row">
+      <div class="opt1-card native">
+        <div class="opt1-card-head">
+          <span class="title">Native Cloud Storage</span>
+          <span class="badge">AWS-paid</span>
+        </div>
+        <div class="tier-row">
+          <img src="/assets/icons/cloud/aws_s3.png" alt="">
+          <span class="tier-name">S3 Standard</span>
+          <span class="tier-vol">80 TB</span>
+        </div>
+        <div class="tier-row">
+          <img src="/assets/icons/cloud/aws_glacier.png" alt="">
+          <span class="tier-name">S3 Glacier</span>
+          <span class="tier-vol">200 TB</span>
+        </div>
+      </div>
+      <div class="opt1-card agp">
+        <div class="opt1-card-head">
+          <span class="title">Air Gap Protect</span>
+          <span class="badge">Commvault</span>
+        </div>
+        <div class="tier-row">
+          <div class="agp-tier-icon hot">H</div>
+          <span class="tier-name">Hot Tier</span>
+          <span class="tier-vol">50 TB</span>
+        </div>
+        <div class="tier-row">
+          <div class="agp-tier-icon cool">C</div>
+          <span class="tier-name">Cool Tier</span>
+          <span class="tier-vol">150 TB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div>
+      <div class="variant-label">Native only — single card centered</div>
+      <div class="opt1-row" style="grid-template-columns: 1fr;">
+        <div class="opt1-card native">
+          <div class="opt1-card-head">
+            <span class="title">Native Cloud Storage</span><span class="badge">AWS-paid</span>
+          </div>
+          <div class="tier-row"><img src="/assets/icons/cloud/aws_s3.png"><span class="tier-name">S3 Standard</span><span class="tier-vol">80 TB</span></div>
+          <div class="tier-row"><img src="/assets/icons/cloud/aws_glacier.png"><span class="tier-name">S3 Glacier</span><span class="tier-vol">200 TB</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="variant-label">AGP only — single card centered</div>
+      <div class="opt1-row" style="grid-template-columns: 1fr;">
+        <div class="opt1-card agp">
+          <div class="opt1-card-head">
+            <span class="title">Air Gap Protect</span><span class="badge">Commvault</span>
+          </div>
+          <div class="tier-row"><div class="agp-tier-icon hot">H</div><span class="tier-name">Hot Tier</span><span class="tier-vol">50 TB</span></div>
+          <div class="tier-row"><div class="agp-tier-icon cool">C</div><span class="tier-name">Cool Tier</span><span class="tier-vol">150 TB</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ OPTION 2 ════════════════ -->
+<section class="option">
+  <div class="option-head">
+    <h2>Option 2 — Stacked horizontal bands (Protected Data Layer style)</h2>
+    <span class="pros">vertical hierarchy, echoes existing PDL rows</span>
+    <span class="cons">single column wastes some horizontal room</span>
+  </div>
+  <p class="option-note">
+    Two stacked bands. Each band has a left-side label (NATIVE / AIR GAP) tinted in its color,
+    then horizontal tier tiles. Visually echoes how HSX nodes stack as rows in the existing
+    Protected Data Layer.
+  </p>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt2-stack">
+      <div class="opt2-band native">
+        <div class="band-tag">Native</div>
+        <div class="opt2-tiles">
+          <div class="opt2-tile">
+            <img src="/assets/icons/cloud/aws_s3.png">
+            <div><div>S3 Standard</div><div class="vol">80 TB</div></div>
+          </div>
+          <div class="opt2-tile">
+            <img src="/assets/icons/cloud/aws_glacier.png">
+            <div><div>S3 Glacier</div><div class="vol">200 TB</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="opt2-band agp">
+        <div class="band-tag">Air Gap</div>
+        <div class="opt2-tiles">
+          <div class="opt2-tile">
+            <div class="agp-tier-icon hot">H</div>
+            <div><div>Hot Tier</div><div class="vol">50 TB</div></div>
+          </div>
+          <div class="opt2-tile">
+            <div class="agp-tier-icon cool">C</div>
+            <div><div>Cool Tier</div><div class="vol">150 TB</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div>
+      <div class="variant-label">Native only — single band</div>
+      <div class="opt2-stack">
+        <div class="opt2-band native">
+          <div class="band-tag">Native</div>
+          <div class="opt2-tiles">
+            <div class="opt2-tile"><img src="/assets/icons/cloud/aws_s3.png"><div><div>S3 Standard</div><div class="vol">80 TB</div></div></div>
+            <div class="opt2-tile"><img src="/assets/icons/cloud/aws_glacier.png"><div><div>S3 Glacier</div><div class="vol">200 TB</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="variant-label">AGP only — single band</div>
+      <div class="opt2-stack">
+        <div class="opt2-band agp">
+          <div class="band-tag">Air Gap</div>
+          <div class="opt2-tiles">
+            <div class="opt2-tile"><div class="agp-tier-icon hot">H</div><div><div>Hot Tier</div><div class="vol">50 TB</div></div></div>
+            <div class="opt2-tile"><div class="agp-tier-icon cool">C</div><div><div>Cool Tier</div><div class="vol">150 TB</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ OPTION 3 ════════════════ -->
+<section class="option">
+  <div class="option-head">
+    <h2>Option 3 — Tier pills in a single row, color-coded by group</h2>
+    <span class="pros">most compact, scales infinitely</span>
+    <span class="cons">grouping less obvious, no per-group framing</span>
+  </div>
+  <p class="option-note">
+    All tiers as inline pills. AWS-orange = native, Commvault-purple = AGP. A subtle vertical
+    divider separates the two groups. Best when the customer has many tiers and you don't want
+    to spend a lot of vertical pixels.
+  </p>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt3-pills">
+      <span class="grouplabel">Native</span>
+      <span class="opt3-pill native"><img src="/assets/icons/cloud/aws_s3.png">S3 Standard <span class="vol">· 80 TB</span></span>
+      <span class="opt3-pill native"><img src="/assets/icons/cloud/aws_glacier.png">Glacier <span class="vol">· 200 TB</span></span>
+      <span class="opt3-divider"></span>
+      <span class="grouplabel">Air Gap</span>
+      <span class="opt3-pill agp"><span class="agp-tier-icon hot" style="width:14px;height:14px;font-size:7px">H</span>Hot <span class="vol">· 50 TB</span></span>
+      <span class="opt3-pill agp"><span class="agp-tier-icon cool" style="width:14px;height:14px;font-size:7px">C</span>Cool <span class="vol">· 150 TB</span></span>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div>
+      <div class="variant-label">Native only</div>
+      <div class="opt3-pills">
+        <span class="grouplabel">Native</span>
+        <span class="opt3-pill native"><img src="/assets/icons/cloud/aws_s3.png">S3 Standard <span class="vol">· 80 TB</span></span>
+        <span class="opt3-pill native"><img src="/assets/icons/cloud/aws_glacier.png">Glacier <span class="vol">· 200 TB</span></span>
+      </div>
+    </div>
+    <div>
+      <div class="variant-label">AGP only</div>
+      <div class="opt3-pills">
+        <span class="grouplabel">Air Gap</span>
+        <span class="opt3-pill agp"><span class="agp-tier-icon hot" style="width:14px;height:14px;font-size:7px">H</span>Hot <span class="vol">· 50 TB</span></span>
+        <span class="opt3-pill agp"><span class="agp-tier-icon cool" style="width:14px;height:14px;font-size:7px">C</span>Cool <span class="vol">· 150 TB</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════ OPTION 4 ════════════════ -->
+<section class="option">
+  <div class="option-head">
+    <h2>Option 4 — Unified "Backup Destinations" block with two nested zones</h2>
+    <span class="pros">single composed unit, frames everything as "destinations"</span>
+    <span class="cons">extra nesting; outer header competes with workloads header</span>
+  </div>
+  <p class="option-note">
+    One outer wrapper labeled "Backup Destinations" containing two nested sub-zones (Native | AGP).
+    Visually similar to the existing Protected Data Layer wrapper, just split into two halves.
+  </p>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt4-wrap">
+      <div class="opt4-head">Backup Destinations</div>
+      <div class="opt4-zones">
+        <div class="opt4-zone native">
+          <div class="zhead"><div class="zdot"></div>NATIVE</div>
+          <div class="tier-row"><img src="/assets/icons/cloud/aws_s3.png"><span class="tier-name">S3 Standard</span><span class="tier-vol">80 TB</span></div>
+          <div class="tier-row"><img src="/assets/icons/cloud/aws_glacier.png"><span class="tier-name">S3 Glacier</span><span class="tier-vol">200 TB</span></div>
+        </div>
+        <div class="opt4-zone agp">
+          <div class="zhead"><div class="zdot"></div>AIR GAP</div>
+          <div class="tier-row"><div class="agp-tier-icon hot">H</div><span class="tier-name">Hot Tier</span><span class="tier-vol">50 TB</span></div>
+          <div class="tier-row"><div class="agp-tier-icon cool">C</div><span class="tier-name">Cool Tier</span><span class="tier-vol">150 TB</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div>
+      <div class="variant-label">Native only — single zone fills the block</div>
+      <div class="opt4-wrap">
+        <div class="opt4-head">Backup Destinations</div>
+        <div class="opt4-zones" style="grid-template-columns: 1fr;">
+          <div class="opt4-zone native">
+            <div class="zhead"><div class="zdot"></div>NATIVE</div>
+            <div class="tier-row"><img src="/assets/icons/cloud/aws_s3.png"><span class="tier-name">S3 Standard</span><span class="tier-vol">80 TB</span></div>
+            <div class="tier-row"><img src="/assets/icons/cloud/aws_glacier.png"><span class="tier-name">S3 Glacier</span><span class="tier-vol">200 TB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="variant-label">AGP only — single zone fills the block</div>
+      <div class="opt4-wrap">
+        <div class="opt4-head">Backup Destinations</div>
+        <div class="opt4-zones" style="grid-template-columns: 1fr;">
+          <div class="opt4-zone agp">
+            <div class="zhead"><div class="zdot"></div>AIR GAP</div>
+            <div class="tier-row"><div class="agp-tier-icon hot">H</div><span class="tier-name">Hot Tier</span><span class="tier-vol">50 TB</span></div>
+            <div class="tier-row"><div class="agp-tier-icon cool">C</div><span class="tier-name">Cool Tier</span><span class="tier-vol">150 TB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- ════════════════ FINAL: Option 2 native + secure AGP ════════════════ -->
+<section class="option" style="border-top: 2px solid var(--purple); padding-top: 24px; background: linear-gradient(180deg, rgba(112,48,160,0.08), transparent 30%);">
+  <div class="option-head">
+    <h2>FINAL — Option 2 native band + AGP band restyled to look secure</h2>
+    <span class="pros">keeps Option 2 layout for native, AGP now visually echoes the existing AGP card</span>
+  </div>
+  <p class="option-note">
+    Native band unchanged from Option 2 (S3 + Glacier tiles). For the AGP band, three candidate
+    treatments below — all reuse the actual <code>agp_cloud</code> / <code>agp_shield</code> /
+    <code>agp_bolt</code> / <code>cs_lock</code> assets from the existing AGP card so the visual
+    language is consistent. Pick one.
+  </p>
+
+  <h3 style="font-size: 13px; color: var(--text-mute); margin: 18px 0 10px; letter-spacing: 0.4px;">Variant A — wide horizontal cards (cloud watermark, shield+lock cluster, tier pill)</h3>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt2-stack">
+      <div class="opt2-band native">
+        <div class="band-tag">Native</div>
+        <div class="opt2-tiles">
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_s3.png"><div><div>S3 Standard</div><div class="vol">80 TB</div></div></div>
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_glacier.png"><div><div>S3 Glacier</div><div class="vol">200 TB</div></div></div>
+        </div>
+      </div>
+      <div class="agp-band">
+        <div class="band-tag">Air Gap</div>
+        <div class="agp-tiles">
+          <div class="agp-tile-a">
+            <div class="cloud-bg"></div>
+            <div class="secure-stack"><div class="shield"></div><div class="lock"></div></div>
+            <div class="meta">
+              <div><span class="tier-tag hot">HOT</span></div>
+              <div class="tname">Hot Tier</div>
+              <div class="tvol">50 TB</div>
+            </div>
+          </div>
+          <div class="agp-tile-a">
+            <div class="cloud-bg"></div>
+            <div class="secure-stack"><div class="shield"></div><div class="lock"></div></div>
+            <div class="meta">
+              <div><span class="tier-tag cool">COOL</span></div>
+              <div class="tname">Cool Tier</div>
+              <div class="tvol">150 TB</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size: 13px; color: var(--text-mute); margin: 28px 0 10px; letter-spacing: 0.4px;">Variant B — vertical mini cloud-cards (shield+lock inside the cloud silhouette)</h3>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt2-stack">
+      <div class="opt2-band native">
+        <div class="band-tag">Native</div>
+        <div class="opt2-tiles">
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_s3.png"><div><div>S3 Standard</div><div class="vol">80 TB</div></div></div>
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_glacier.png"><div><div>S3 Glacier</div><div class="vol">200 TB</div></div></div>
+        </div>
+      </div>
+      <div class="agp-band">
+        <div class="band-tag">Air Gap</div>
+        <div class="agp-tiles">
+          <div class="agp-tile-b">
+            <div class="cloudshape"><div class="shield"></div><div class="lock"></div></div>
+            <div class="tier-row-b"><span class="tier-dot hot"></span>Hot Tier</div>
+            <div class="vol">50 TB</div>
+          </div>
+          <div class="agp-tile-b">
+            <div class="cloudshape"><div class="shield"></div><div class="lock"></div></div>
+            <div class="tier-row-b"><span class="tier-dot cool"></span>Cool Tier</div>
+            <div class="vol">150 TB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size: 13px; color: var(--text-mute); margin: 28px 0 10px; letter-spacing: 0.4px;">Variant C — full secure cluster per tier (cloud + shield + lock + bolt + immutable callout)</h3>
+  <div class="site">
+    <div class="site-label">
+      <img src="/assets/icons/vendor/aws.png" alt="AWS">
+      <span class="name">AWS Production</span>
+      <span class="pill">us-east-1</span>
+    </div>
+    <div class="site-underline"></div>
+
+    <div class="workloads">
+      <div class="workloads-head">Protected Workloads</div>
+      <div class="chips">
+        <div class="chip"><img src="/assets/icons/cloud/aws_ec2.png">EC2</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_s3.png">S3</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_rds.png">RDS</div>
+        <div class="chip"><img src="/assets/icons/cloud/aws_lambda.png">Lambda</div>
+      </div>
+      <div class="summary">200 VMs | 80 TB</div>
+    </div>
+
+    <div class="cc-row">
+      <div class="cc-card">
+        <div class="lock">🔒</div>
+        <div class="ui" style="background-image:url(/assets/vendor-ui/commvault.png)"></div>
+      </div>
+      <div>
+        <div class="gw-cluster"><div class="gw"></div><div class="gw"></div></div>
+        <div class="gw-label">Gateways (2)</div>
+      </div>
+    </div>
+
+    <div class="opt2-stack">
+      <div class="opt2-band native">
+        <div class="band-tag">Native</div>
+        <div class="opt2-tiles">
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_s3.png"><div><div>S3 Standard</div><div class="vol">80 TB</div></div></div>
+          <div class="opt2-tile"><img src="/assets/icons/cloud/aws_glacier.png"><div><div>S3 Glacier</div><div class="vol">200 TB</div></div></div>
+        </div>
+      </div>
+      <div class="agp-band">
+        <div class="band-tag">Air Gap</div>
+        <div class="agp-tiles">
+          <div class="agp-tile-c">
+            <div class="secure-cluster">
+              <div class="cloud"></div>
+              <div class="shield"></div>
+              <div class="lock"></div>
+              <div class="bolt"></div>
+            </div>
+            <div class="meta">
+              <div class="tname-row"><span class="tname">Hot Tier</span><span class="ttag hot">AGP</span></div>
+              <div class="tvol">50 TB</div>
+              <div class="immutable">Immutable · Air-gapped</div>
+            </div>
+          </div>
+          <div class="agp-tile-c">
+            <div class="secure-cluster">
+              <div class="cloud"></div>
+              <div class="shield"></div>
+              <div class="lock"></div>
+              <div class="bolt"></div>
+            </div>
+            <div class="meta">
+              <div class="tname-row"><span class="tname">Cool Tier</span><span class="ttag cool">AGP</span></div>
+              <div class="tvol">150 TB</div>
+              <div class="immutable">Immutable · Air-gapped</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+</body>
+</html>

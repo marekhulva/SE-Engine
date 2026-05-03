@@ -81,12 +81,21 @@ class BackupSoftwareStack(Component):
     # Lock's visible body occupies roughly x 20–76 of a 96 viewBox.
     LOCK_VISIBLE_RIGHT = 76 / 96
 
-    def __init__(self, vendor='commvault', label=None):
+    def __init__(self, vendor='commvault', label=None,
+                 hosted_by_commvault=False):
         cfg = {**DEFAULT_VENDOR, **VENDOR_CONFIG.get(vendor, {})}
         self.vendor = vendor
         self._ui_src = IMAGES.get(cfg['ui_key']) if cfg['ui_key'] else None
         self.badge = cfg['badge']
         self.badge_fill = cfg['badge_fill']
+        # SaaS deployment variant: same UI thumbnail, but the indicator
+        # cluster drops the CommServe server icon + CS badge (since
+        # Commvault hosts those) and keeps only the lock as a visual
+        # cue that this is a managed/secure service. Label changes from
+        # "Commvault Command Center" to "Hosted by Commvault".
+        self.hosted_by_commvault = hosted_by_commvault
+        if label is None and hosted_by_commvault:
+            label = 'Hosted by Commvault'
         self.label = label or cfg['label']
 
     def preferred_size(self):
@@ -147,23 +156,36 @@ class BackupSoftwareStack(Component):
         lock_x = server_x + self.SERVER_VISIBLE_LEFT * server_size - lock_visible_w - gap
         lock_y = server_y + server_size / 2 - lock_size / 2
 
-        shapes.append(image(server_x, server_y, server_size, server_size,
-                            IMAGES['cs_server']))
-        shapes.append(image(lock_x, lock_y, lock_size, lock_size, IMAGES['cs_lock']))
+        if self.hosted_by_commvault:
+            # SaaS variant: no in-site CommServe — drop the server icon
+            # AND the CS badge. Center the lock alone in the indicator
+            # slot at server-icon height so the visual weight matches a
+            # software card next to it.
+            big_lock_size = server_size * 0.85
+            big_lock_x = (content_x + indicator_w / 2) - big_lock_size / 2
+            big_lock_y = content_y + (content_h - big_lock_size) / 2
+            shapes.append(image(big_lock_x, big_lock_y,
+                                big_lock_size, big_lock_size,
+                                IMAGES['cs_lock']))
+        else:
+            shapes.append(image(server_x, server_y, server_size, server_size,
+                                IMAGES['cs_server']))
+            shapes.append(image(lock_x, lock_y, lock_size, lock_size,
+                                IMAGES['cs_lock']))
 
-        # Vendor badge oval — sits at the server's VISIBLE bottom-right corner,
-        # mostly OUTSIDE the server with just a small overlap kissing the corner.
-        # Badge center is offset diagonally outward from the corner.
-        corner_x = server_x + self.SERVER_VISIBLE_RIGHT * server_size
-        corner_y = server_y + self.SERVER_VISIBLE_BOTTOM * server_size
-        badge_x = corner_x - badge_size * 0.3
-        badge_y = corner_y - badge_size * 0.3
-        shapes.append(oval(badge_x, badge_y,
-                           badge_size, badge_size,
-                           fill=self.badge_fill,
-                           stroke=COLORS['text_primary'], sw=0.5,
-                           text_content=self.badge,
-                           fs=7, text_color=COLORS['text_primary']))
+            # Vendor badge oval — sits at the server's VISIBLE bottom-right corner,
+            # mostly OUTSIDE the server with just a small overlap kissing the corner.
+            # Badge center is offset diagonally outward from the corner.
+            corner_x = server_x + self.SERVER_VISIBLE_RIGHT * server_size
+            corner_y = server_y + self.SERVER_VISIBLE_BOTTOM * server_size
+            badge_x = corner_x - badge_size * 0.3
+            badge_y = corner_y - badge_size * 0.3
+            shapes.append(oval(badge_x, badge_y,
+                               badge_size, badge_size,
+                               fill=self.badge_fill,
+                               stroke=COLORS['text_primary'], sw=0.5,
+                               text_content=self.badge,
+                               fs=7, text_color=COLORS['text_primary']))
 
         # Label at bottom, full card width
         shapes.append(text(content_x, content_y + content_h,

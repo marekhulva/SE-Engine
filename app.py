@@ -82,7 +82,32 @@ For a cloud workload site (AWS / Azure / GCP — workloads run IN the cloud, not
 ```
 **RULE for `type: "cloud"`:** the workloads array must use cloud SERVICE names (EC2, S3, RDS, Lambda, EKS, Azure VM, Cosmos DB, AKS, BigQuery, GKE, Cloud Storage, etc.) — these resolve to the cloud-provider's official service icons. Do NOT use generic terms like "VMs" or "Databases" inside a cloud site. If user says "we run on AWS with VMs and a SQL database", translate to ["EC2", "RDS"]. If user names a service we don't have an icon for, fall back to a generic chip but emit the service name.
 
+Optional `destinations` block on a cloud site — describes WHERE the cloud workloads' backups land. Two sibling tier groups, both optional:
+```
+"destinations": {
+  "native": [                              // cloud-provider native storage tiers (S3, EBS, Azure Blob, GCS, etc.)
+    {"service": "aws_s3",      "label": "S3 Standard", "capacity_tb": 80},
+    {"service": "aws_glacier", "label": "S3 Glacier",  "capacity_tb": 200}
+  ],
+  "agp": [                                 // Commvault Air Gap Protect tiers — IN-CLOUD
+    {"tier": "hot",  "capacity_tb": 50},   // tier ∈ {"hot", "cool", "archive"}
+    {"tier": "cool", "capacity_tb": 150}
+  ]
+}
+```
+- Either group may be empty/omitted: `native only`, `agp only`, or `both` are all valid.
+- The renderer slots a "BackupDestinationsLayer" into the cloud-site container — top band lists native tiers (cloud-tinted), bottom band lists AGP tiers as secure mini-cards (cloud + shield + lock + bolt + "Immutable · Air-gapped" callout). The standalone right-side AGP card (with cleanroom etc.) only renders when the user describes external/cross-account AGP at the top-level `agps[]`.
+- Prefer placing per-cloud-site AGP tiers inside `destinations.agp` (in-cloud, customer's own AGP) and only use the top-level `agps[]` when the AGP is a separate account / different cloud serving multiple sites.
+
 **RULE on Media Agents vs Gateways:** the JSON schema field is always `media_agents` regardless of site type, but Commvault CALLS them "Gateways" inside cloud environments. Cloud sites auto-render the label/badge as "Gateway" / "GW". On-prem sites render "Media Agent" / "MA". The user might say "two cloud gateways" or "a Gateway in our AWS account" — that's just media_agents=N on a `type: "cloud"` site, no special field needed.
+
+**Deployment model (Commvault Software vs Commvault SaaS):**
+- Add `"deployment": "software"` (default) when the customer hosts CommServe + Command Center themselves.
+- Add `"deployment": "saas"` when Commvault hosts CommServe + Command Center in their cloud (the customer just installs Gateways and connects to Commvault's hosted control plane).
+- Triggers for `"deployment": "saas"`: user says "Commvault Cloud", "Commvault SaaS", "managed by Commvault", "we don't run our own CommServe", "Commvault hosts it for us", "plug-and-play", "no on-prem CS".
+- Triggers for `"deployment": "software"` (or omit, since default): user says "self-hosted", "we run Commvault on-prem", "our own CommServe", "we manage the upgrades".
+- Mixed scenarios are valid — customer might run Commvault Software for on-prem DC + Commvault SaaS for AWS workloads. Each site sets its own deployment value.
+- Engine effect: `saas` sites still render an in-site Command Center card next to the Gateways, but in a "Hosted by Commvault" variant — the CS server icon + CS badge are removed (since Commvault hosts those) and the label changes to "Hosted by Commvault". The Commvault Command Center UI thumbnail and lock icon stay so the card visually echoes the software variant. The top-of-diagram UnityCard is unaffected — Unity is the unified Software+SaaS management plane and stays as the banner regardless of deployment mix.
 
 For individual SaaS app cards (each app gets its own card + its own AGP):
 ```
@@ -202,6 +227,17 @@ def parse():
         return jsonify({'error': f'JSON parse failed: {e}', 'raw': raw}), 500
     return jsonify(scenario)
 
+
+@app.route('/design/<name>')
+def design_mockup(name):
+    """Serve handcrafted HTML mockups from design/<name>.html for visual
+    iteration — used during design-decision moments before committing to
+    a layout. Files live under design/ and reference /assets/ for icons."""
+    safe = re.sub(r'[^a-z0-9_]', '', name.lower())
+    path = os.path.join(BASE_DIR, 'design', f'{safe}.html')
+    if not os.path.exists(path):
+        return jsonify({'error': f'no design mockup: {safe}'}), 404
+    return send_file(path)
 
 @app.route('/assets/<path:filename>')
 def assets(filename):

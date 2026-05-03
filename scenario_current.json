@@ -1,5 +1,5 @@
 {
-  "title": "Primary DC + DR + AWS Production — AWS AGP + Cleanroom",
+  "title": "Primary DC + DR + AWS — Native S3 (1st) + AGP Cool (2nd)",
   "unity": true,
   "sites": [
     {
@@ -30,13 +30,22 @@
       "cloud": "aws",
       "region": "us-east-1",
       "name": "AWS Production",
+      "deployment": "saas",
       "workloads": ["EC2", "S3", "RDS", "Lambda"],
       "vm_count": 200,
       "storage_tb": 80,
       "backup_software": "commvault",
       "backup_target": "none",
       "media_agents": 2,
-      "retention_days": 30
+      "retention_days": 30,
+      "destinations": {
+        "native": [
+          {"service": "aws_s3", "label": "S3 Standard", "capacity_tb": 80}
+        ],
+        "agp": [
+          {"tier": "cool", "capacity_tb": 150}
+        ]
+      }
     }
   ],
   "connections": [

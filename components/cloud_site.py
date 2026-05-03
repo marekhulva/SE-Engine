@@ -63,6 +63,12 @@ class CloudSite(OnPremSite):
 
     @classmethod
     def from_dict(cls, d):
+        # Thread `destinations` through; auto-fill cloud_provider so the
+        # NATIVE band tints in the site's cloud brand color without the
+        # user having to repeat themselves.
+        destinations = d.get('destinations')
+        if destinations and 'cloud_provider' not in destinations:
+            destinations = {**destinations, 'cloud_provider': d.get('cloud', 'aws')}
         return cls(name=d['name'],
                    cloud=d.get('cloud', 'aws'),
                    region=d.get('region'),
@@ -73,7 +79,9 @@ class CloudSite(OnPremSite):
                    backup_target=d.get('backup_target', 'none'),
                    retention_days=d.get('retention_days'),
                    media_agents=d.get('media_agents'),
-                   callout=d.get('callout'))
+                   callout=d.get('callout'),
+                   deployment=d.get('deployment', 'software'),
+                   destinations=destinations)
 
     def render(self, x, y, w, h):
         shapes = []
