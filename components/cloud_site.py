@@ -48,7 +48,12 @@ class CloudSite(OnPremSite):
         if media_agents is None:
             media_agents = 2
         # Default callout for Commvault: cloud-flavored phrasing.
-        if 'callout' not in kwargs or kwargs.get('callout') is None:
+        # NON-Commvault cloud sites get NO default callout — Site.__init__
+        # then attaches the red gap-callouts stack ("No Pre-Backup Detection",
+        # "No Inline Backup Detection", "Not Immutable"), matching the
+        # template's "what's missing" pattern.
+        vendor = (kwargs.get('backup_software') or 'commvault').lower()
+        if vendor == 'commvault' and ('callout' not in kwargs or kwargs.get('callout') is None):
             kwargs['callout'] = {
                 'message': f'{meta["label"]} Backups Cloud-Native + Immutable',
                 'kind': 'positive',
@@ -59,6 +64,8 @@ class CloudSite(OnPremSite):
                          ma_badge='GW',
                          ma_label_singular='Gateway',
                          ma_label_plural='Gateways',
+                         ma_badge_fill=self.brand_color,
+                         unit_label='Instances',   # cloud sites count instances, not VMs
                          **kwargs)
 
     @classmethod
@@ -110,7 +117,8 @@ class CloudSite(OnPremSite):
             + (gap + region_w if self.region else 0)
         )
         group_x = x + (w - group_w) / 2
-        cy = y
+        # Shift label block down so the Pre-Backup callout owns the top zone.
+        cy = y + self._scatter_top
 
         cur_x = group_x
         if logo_src:
@@ -138,32 +146,69 @@ class CloudSite(OnPremSite):
         # underline on OnPremSite, but in the cloud's brand hue).
         underline_w = min(w * 0.85, 2.67)
         underline_x = x + (w - underline_w) / 2
-        shapes.append(rect(underline_x, y + self.LABEL_H,
+        shapes.append(rect(underline_x, cy + self.LABEL_H,
                            underline_w, self.UNDERLINE_H,
                            fill=self.brand_color, stroke=None))
 
         # Container with brand-tinted border (vs OnPremSite's neutral grey).
-        callout_reserve = 0
-        if self.callout is not None:
-            _, cc_h = self.callout.preferred_size()
-            callout_reserve = self.CALLOUT_GAP + cc_h
+        callout_reserve = self._callout_reserve()
         min_container_h = self._inner.preferred_size()[1] + self.INNER_PAD * 2
-        given_container_h = h - self.LABEL_BLOCK_H - self.LABEL_GAP - callout_reserve
+        given_container_h = (h - self._scatter_top - self.LABEL_BLOCK_H
+                             - self.LABEL_GAP - callout_reserve)
         container_h = max(given_container_h, min_container_h)
 
-        container_top = y + self.LABEL_BLOCK_H + self.LABEL_GAP
+        container_top = cy + self.LABEL_BLOCK_H + self.LABEL_GAP
         shapes.append(rect(x, container_top, w, container_h,
                            fill=None, stroke=self.brand_color, sw=1.0,
                            radius=self.CONTAINER_RADIUS))
 
         # Inner stack (workloads + MA + optional storage layer) — same as parent.
+        inner_x = x + self.INNER_PAD
+        inner_y = container_top + self.INNER_PAD
+        inner_w = w - self.INNER_PAD * 2
         shapes.extend(self._inner.render(
-            x + self.INNER_PAD,
-            container_top + self.INNER_PAD,
-            w - self.INNER_PAD * 2,
+            inner_x, inner_y, inner_w,
             self._inner.preferred_size()[1],
         ))
 
+        # Scattered GAP callouts — same logic as OnPremSite.render. Cloud
+        # sites typically don't have a Protected Data Layer (data lands on
+        # AGP / native cloud storage), so "Not Immutable" only fires when
+        # a PDL child exists. The other two anchor on the vendor stack and
+        # the gap before whichever component follows it.
+        if self._gap_pre or self._gap_inline or self._gap_immut:
+            cy_acc = inner_y
+            child_y = {}
+            for i, c in enumerate(self._inner_children):
+                child_y[i] = cy_acc
+                cy_acc += c.preferred_size()[1] + self._inner_gap
+
+            def place(call, x_pos, y_pos):
+                cw, ch = call.preferred_size()
+                shapes.extend(call.render(x_pos, y_pos, cw, ch))
+
+            # Pre-Backup Detection — TOP scatter zone, above the label block
+            if self._gap_pre:
+                place(self._gap_pre, x + 0.05, y + 0.06)
+
+            # Inline Backup Detection — inside the gap after the vendor stack
+            if self._gap_inline and self._idx_vendor is not None:
+                vendor_h = self._inner_children[self._idx_vendor].preferred_size()[1]
+                vendor_end = child_y[self._idx_vendor] + vendor_h
+                if self._idx_pld is not None:
+                    pld_y = child_y[self._idx_pld]
+                    mid_y = (vendor_end + pld_y) / 2 - 0.10
+                else:
+                    mid_y = vendor_end + self._inner_gap / 2 - 0.10
+                cw, _ = self._gap_inline.preferred_size()
+                place(self._gap_inline, x + w - cw - 0.05, mid_y)
+
+            # Not Immutable — BOTTOM scatter zone, below the container
+            if self._gap_immut:
+                place(self._gap_immut,
+                      x + 0.35, container_top + container_h + 0.06)
+
+        # Callout below container (single — gap callouts are inlined inside).
         if self.callout is not None:
             cy2 = container_top + container_h + self.CALLOUT_GAP
             cw, ch = self.callout.preferred_size()

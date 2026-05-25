@@ -7,6 +7,16 @@ import anthropic
 app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Load .env if present so the key survives Flask's debug reloader
+_env_path = os.path.join(BASE_DIR, '.env')
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _k, _v = _line.split('=', 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
 PARSER_SYSTEM_PROMPT = """You are an expert at converting natural-language descriptions of IT infrastructure into a structured JSON scenario for a Commvault architecture diagram tool.

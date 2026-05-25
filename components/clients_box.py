@@ -29,13 +29,15 @@ class ClientsAndStorage(Component):
     # a site has.
     MAX_CHIPS_PER_ROW = 4
 
-    def __init__(self, workloads, vm_count, storage_tb, is_commvault=True):
+    def __init__(self, workloads, vm_count, storage_tb, is_commvault=True,
+                 unit_label='VMs'):
         # Each workload is either a string (label) or a dict
         # {"label": ..., "icon": ...} for explicit icon override.
         self.chips = [self._make_chip(w) for w in workloads]
         self.vm_count = vm_count
         self.storage_tb = storage_tb
         self.is_commvault = is_commvault
+        self.unit_label = unit_label   # 'VMs' on-prem, 'Instances' for cloud sites
         self.header = HeaderBar('Protected Workloads', is_commvault)
 
     @staticmethod
@@ -102,6 +104,6 @@ class ClientsAndStorage(Component):
 
         # Summary line
         shapes.append(text(inner_x, cy, inner_w, self.SUMMARY_H,
-                           f'{self.vm_count} VMs | {self.storage_tb}TB',
+                           f'{self.vm_count} {self.unit_label} | {self.storage_tb}TB',
                            fs=10, color=COLORS['text_primary'], align='center'))
         return shapes

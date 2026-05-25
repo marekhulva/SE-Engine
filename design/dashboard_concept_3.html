@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>SE Hub — Concept 3: Big-Picture Console</title>
+<style>
+  :root {
+    --bg:#0a0a10; --bg-card:#12151d; --bg-card-2:#161b27; --line:#1e2435; --line-2:#263045;
+    --text:#f1f5f9; --text-mute:#94a3b8; --text-dim:#64748b;
+    --cv:#7030A0; --cv2:#834895; --cv-soft:#3a1a55; --cv-light:#C1A3C9;
+    --ok:#22c55e; --warn:#fbbf24; --err:#f87171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; min-height:100vh; }
+  .header { height:54px; background:var(--bg-card); border-bottom:1px solid var(--line);
+            display:flex; align-items:center; padding:0 22px; gap:18px; position:sticky; top:0; z-index:5; }
+  .logo-mark { width:32px; height:32px; background:linear-gradient(135deg,var(--cv) 0%,var(--cv2) 100%); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .logo-text { font-size:14px; font-weight:600; }
+  .logo-sub { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; }
+  .nav { display:flex; gap:4px; margin-left:24px; }
+  .nav a { font-size:12px; color:var(--text-mute); padding:6px 12px; border-radius:5px; cursor:pointer; }
+  .nav a.active { color:var(--cv-light); background:var(--cv-soft); }
+  .who { display:flex; align-items:center; gap:8px; margin-left:auto; }
+  .who-name { font-size:12px; color:var(--text-mute); }
+  .avatar { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--cv),var(--cv2)); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; }
+
+  /* HERO ─────────── */
+  .hero { padding:36px 32px 28px; background:radial-gradient(ellipse at top, rgba(112,48,160,0.12), transparent 60%); border-bottom:1px solid var(--line); }
+  .hero h1 { font-size:32px; font-weight:600; letter-spacing:-0.6px; margin-bottom:6px; }
+  .hero p { color:var(--text-mute); font-size:14px; max-width:680px; }
+  .hero-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:24px; max-width:1280px; }
+  .hs-card { background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  .hs-lbl { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
+  .hs-val { font-size:32px; font-weight:600; margin-top:6px; letter-spacing:-0.5px; }
+  .hs-val .small { font-size:14px; color:var(--text-mute); margin-left:6px; font-weight:400; }
+  .hs-spark { height:32px; margin-top:10px; }
+  .hs-foot { font-size:11px; color:var(--text-mute); margin-top:6px; }
+  .hs-foot.up { color:var(--ok); }
+  .hs-foot.down { color:var(--err); }
+
+  /* SECTION HEADERS */
+  section { padding:28px 32px; max-width:1380px; }
+  .sec-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px; }
+  .sec-head h2 { font-size:18px; font-weight:600; letter-spacing:-0.2px; }
+  .sec-head .sub { font-size:12px; color:var(--text-mute); margin-top:2px; }
+  .sec-head a { font-size:12px; color:var(--cv-light); text-decoration:none; }
+  .filters { display:flex; gap:6px; }
+  .pill { font-size:11px; padding:5px 12px; border-radius:14px; background:var(--bg-card-2); color:var(--text-mute); cursor:pointer; border:1px solid var(--line); }
+  .pill.on { background:var(--cv-soft); color:var(--cv-light); border-color:var(--cv); }
+
+  /* CUSTOMER GRID */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .ctile { background:var(--bg-card); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; transition:.15s; }
+  .ctile:hover { border-color:var(--cv); transform:translateY(-2px); }
+  .ctile-thumb { height:140px; background:#000; display:flex; position:relative; }
+  .ctile-thumb iframe { flex:1; border:none; pointer-events:none; }
+  .ctile-thumb .split-line { position:absolute; top:0; bottom:0; left:50%; width:2px; background:var(--cv); opacity:0.6; }
+  .ctile-thumb .lbl-c { position:absolute; top:8px; left:8px; font-size:9px; padding:2px 6px; background:rgba(0,0,0,0.7); border-radius:3px; font-weight:700; letter-spacing:0.4px; color:var(--text-mute); }
+  .ctile-thumb .lbl-f { position:absolute; top:8px; left:50%; margin-left:8px; font-size:9px; padding:2px 6px; background:var(--cv-soft); color:var(--cv-light); border-radius:3px; font-weight:700; letter-spacing:0.4px; }
+  .ctile-body { padding:14px 16px; }
+  .ctile-row1 { display:flex; align-items:flex-start; justify-content:space-between; }
+  .ctile-name { font-size:14px; font-weight:600; }
+  .ctile-meta { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .ctile-stage { font-size:9px; padding:2px 7px; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+  .stage-discovery { background:rgba(59,130,246,0.18); color:#60a5fa; }
+  .stage-poc { background:rgba(168,85,247,0.18); color:#c084fc; }
+  .stage-neg { background:rgba(251,191,36,0.18); color:#fbbf24; }
+  .stage-won { background:rgba(34,197,94,0.18); color:#4ade80; }
+  .stage-risk { background:rgba(248,113,113,0.18); color:#f87171; }
+  .ctile-row2 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .stat-mini-lbl { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; }
+  .stat-mini-val { font-size:14px; font-weight:600; margin-top:2px; }
+  .ctile-foot { display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:11px; color:var(--text-mute); }
+  .ctile-foot .arr { color:var(--cv-light); font-weight:600; }
+
+  /* COMPETITOR HEAT */
+  .competitor-heat { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+  .ch-card { background:var(--bg-card); border:1px solid var(--line); border-radius:8px; padding:14px; text-align:center; }
+  .ch-name { font-size:11px; color:var(--text-mute); margin-bottom:6px; }
+  .ch-count { font-size:20px; font-weight:600; }
+  .ch-bar { height:4px; background:#1a1a26; border-radius:2px; overflow:hidden; margin-top:10px; }
+  .ch-bar > div { height:100%; }
+  .ch-veeam .ch-bar > div { background:#00B143; }
+  .ch-rubrik .ch-bar > div { background:#00B398; }
+  .ch-cohesity .ch-bar > div { background:#02A9C7; }
+  .ch-networker .ch-bar > div, .ch-avamar .ch-bar > div { background:#0076CE; }
+  .ch-unitrends .ch-bar > div { background:#E2231A; }
+  .ch-greenfield .ch-bar > div { background:var(--cv); }
+
+  svg.spark path { fill:none; stroke:var(--cv-light); stroke-width:1.5; }
+  svg.spark path.fill { fill:url(#sparkfill); stroke:none; opacity:0.4; }
+</style></head><body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="logo-mark">CV</div>
+    <div><div class="logo-text">SE Hub</div><div class="logo-sub">Portfolio Console</div></div>
+  </div>
+  <div class="nav"><a>Customers</a><a>Pipeline</a><a class="active">Console</a><a>Library</a><a>Reports</a></div>
+  <div class="who">
+    <span class="who-name">Marek H. · NAMER East SE</span>
+    <div class="avatar">MH</div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Good morning, Marek</h1>
+  <p>12 accounts active · 4 deals in POC · $8.4M pipeline ARR · 3 transcripts processed today.</p>
+  <div class="hero-stats">
+    <div class="hs-card">
+      <div class="hs-lbl">VMs Under Discussion</div>
+      <div class="hs-val">4,620<span class="small">+182 wk</span></div>
+      <svg class="spark" width="100%" height="32" viewBox="0 0 100 32" preserveAspectRatio="none">
+        <defs><linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7030A0"/><stop offset="100%" stop-color="#7030A0" stop-opacity="0"/></linearGradient></defs>
+        <path class="fill" d="M0,28 L8,22 L16,24 L24,18 L32,20 L40,12 L48,14 L56,9 L64,11 L72,6 L80,8 L88,4 L96,2 L100,1 L100,32 L0,32 Z"/>
+        <path d="M0,28 L8,22 L16,24 L24,18 L32,20 L40,12 L48,14 L56,9 L64,11 L72,6 L80,8 L88,4 L96,2 L100,1"/>
+      </svg>
+      <div class="hs-foot up">↑ 14% MoM</div>
+    </div>
+    <div class="hs-card">
+      <div class="hs-lbl">Storage to Protect</div>
+      <div class="hs-val">2.18<span class="small">PB total</span></div>
+      <svg class="spark" width="100%" height="32" viewBox="0 0 100 32" preserveAspectRatio="none">
+        <path class="fill" d="M0,30 L10,28 L20,26 L30,22 L40,24 L50,18 L60,20 L70,16 L80,10 L90,8 L100,6 L100,32 L0,32 Z"/>
+        <path d="M0,30 L10,28 L20,26 L30,22 L40,24 L50,18 L60,20 L70,16 L80,10 L90,8 L100,6"/>
+      </svg>
+      <div class="hs-foot up">↑ 22% YoY</div>
+    </div>
+    <div class="hs-card">
+      <div class="hs-lbl">Pipeline ARR</div>
+      <div class="hs-val">$8.4M<span class="small">12 deals</span></div>
+      <svg class="spark" width="100%" height="32" viewBox="0 0 100 32" preserveAspectRatio="none">
+        <path class="fill" d="M0,24 L8,22 L16,18 L24,20 L32,14 L40,10 L48,12 L56,8 L64,10 L72,5 L80,7 L88,4 L96,2 L100,1 L100,32 L0,32 Z"/>
+        <path d="M0,24 L8,22 L16,18 L24,20 L32,14 L40,10 L48,12 L56,8 L64,10 L72,5 L80,7 L88,4 L96,2 L100,1"/>
+      </svg>
+      <div class="hs-foot up">↑ $1.4M qtd</div>
+    </div>
+    <div class="hs-card">
+      <div class="hs-lbl">Avg Time to POC</div>
+      <div class="hs-val">14 days<span class="small">↓ from 28</span></div>
+      <svg class="spark" width="100%" height="32" viewBox="0 0 100 32" preserveAspectRatio="none">
+        <path class="fill" d="M0,4 L10,8 L20,12 L30,18 L40,16 L50,22 L60,20 L70,24 L80,26 L90,28 L100,30 L100,32 L0,32 Z"/>
+        <path d="M0,4 L10,8 L20,12 L30,18 L40,16 L50,22 L60,20 L70,24 L80,26 L90,28 L100,30"/>
+      </svg>
+      <div class="hs-foot down">↓ 50% faster</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPETITOR HEAT -->
+<section>
+  <div class="sec-head">
+    <div><h2>Competitor Replacement Pipeline</h2><div class="sub">Active deals replacing each backup vendor</div></div>
+    <a>Drilldown ↗</a>
+  </div>
+  <div class="competitor-heat">
+    <div class="ch-card ch-veeam"><div class="ch-name">Veeam</div><div class="ch-count">3</div><div class="ch-bar"><div style="width:60%"></div></div></div>
+    <div class="ch-card ch-rubrik"><div class="ch-name">Rubrik</div><div class="ch-count">2</div><div class="ch-bar"><div style="width:40%"></div></div></div>
+    <div class="ch-card ch-cohesity"><div class="ch-name">Cohesity</div><div class="ch-count">2</div><div class="ch-bar"><div style="width:40%"></div></div></div>
+    <div class="ch-card ch-networker"><div class="ch-name">NetWorker</div><div class="ch-count">1</div><div class="ch-bar"><div style="width:20%"></div></div></div>
+    <div class="ch-card ch-avamar"><div class="ch-name">Avamar</div><div class="ch-count">1</div><div class="ch-bar"><div style="width:20%"></div></div></div>
+    <div class="ch-card ch-unitrends"><div class="ch-name">Unitrends</div><div class="ch-count">2</div><div class="ch-bar"><div style="width:40%"></div></div></div>
+    <div class="ch-card ch-greenfield"><div class="ch-name">Greenfield</div><div class="ch-count">1</div><div class="ch-bar"><div style="width:20%"></div></div></div>
+  </div>
+</section>
+
+<!-- CUSTOMER GRID -->
+<section>
+  <div class="sec-head">
+    <div><h2>Active Accounts</h2><div class="sub">Each tile shows current → future state side-by-side</div></div>
+    <div class="filters">
+      <span class="pill on">All</span><span class="pill">My Accounts</span>
+      <span class="pill">POC</span><span class="pill">At Risk</span>
+      <span class="pill">≥ $500K</span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_veeam"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · VEEAM</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Acme Corp</div><div class="ctile-meta">Manufacturing · 3,500 emp</div></div>
+          <span class="ctile-stage stage-poc">POC</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">282</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">186 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">2</div></div>
+        </div>
+        <div class="ctile-foot"><span>POC day 12/28</span><span class="arr">$850K ARR</span></div>
+      </div>
+    </div>
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_rubrik"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · RUBRIK</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Globex Industries</div><div class="ctile-meta">Manufacturing · 4,000 emp</div></div>
+          <span class="ctile-stage stage-discovery">Disc</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">500</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">400 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">1</div></div>
+        </div>
+        <div class="ctile-foot"><span>2 transcripts</span><span class="arr">$1.1M ARR</span></div>
+      </div>
+    </div>
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_cohesity"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · COHESITY</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Initech Systems</div><div class="ctile-meta">FinServ · 5,500 emp</div></div>
+          <span class="ctile-stage stage-neg">Neg</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">620</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">410 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">3</div></div>
+        </div>
+        <div class="ctile-foot"><span>contract Q2</span><span class="arr">$1.1M ARR</span></div>
+      </div>
+    </div>
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_avamar"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · AVAMAR</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Wayne Enterprises</div><div class="ctile-meta">Defense · 22,000 emp</div></div>
+          <span class="ctile-stage stage-poc">POC</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">320</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">200 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">2</div></div>
+        </div>
+        <div class="ctile-foot"><span>Avamar EOL '27</span><span class="arr">$1.2M ARR</span></div>
+      </div>
+    </div>
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_networker"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · NETWORKER</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Stark Industries</div><div class="ctile-meta">Aerospace · 12,000 emp</div></div>
+          <span class="ctile-stage stage-discovery">Disc</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">1,247</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">820 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">4</div></div>
+        </div>
+        <div class="ctile-foot"><span>just added</span><span class="arr">$680K ARR</span></div>
+      </div>
+    </div>
+    <div class="ctile">
+      <div class="ctile-thumb">
+        <iframe src="/?scenario=competitor_unitrends"></iframe>
+        <div class="split-line"></div>
+        <iframe src="/?scenario=competitor_commvault"></iframe>
+        <span class="lbl-c">CURRENT · UNITRENDS</span><span class="lbl-f">FUTURE · CV</span>
+      </div>
+      <div class="ctile-body">
+        <div class="ctile-row1">
+          <div><div class="ctile-name">Cyberdyne Systems</div><div class="ctile-meta">Tech · 800 emp</div></div>
+          <span class="ctile-stage stage-neg">Neg</span>
+        </div>
+        <div class="ctile-row2">
+          <div><div class="stat-mini-lbl">VMs</div><div class="stat-mini-val">95</div></div>
+          <div><div class="stat-mini-lbl">Storage</div><div class="stat-mini-val">40 TB</div></div>
+          <div><div class="stat-mini-lbl">Sites</div><div class="stat-mini-val">1</div></div>
+        </div>
+        <div class="ctile-foot"><span>close target Jun</span><span class="arr">$680K ARR</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body></html>

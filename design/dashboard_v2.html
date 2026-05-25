@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Commvault SE Hub — Starlight Healthcare</title>
+<style>
+  :root {
+    --bg-1:#0a0815; --bg-2:#1A1330; --bg-3:#231A45;
+    --card:rgba(255,255,255,0.04); --card-2:rgba(255,255,255,0.06);
+    --line:rgba(255,255,255,0.06); --line-2:rgba(255,255,255,0.10);
+    --text:#F1ECFF; --text-mute:#A39DBE; --text-dim:#65607A;
+    --cv:#9F5BD9; --cv-hi:#B677F0; --cv-deep:#7030A0; --cv-soft:rgba(159,91,217,0.16);
+    --ok:#5BD99F; --warn:#F0B85B; --err:#E97070;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    background:
+      radial-gradient(ellipse 1100px 600px at 25% -100px, rgba(112,48,160,0.32), transparent 55%),
+      radial-gradient(ellipse 900px 500px at 110% 30%, rgba(80,40,150,0.20), transparent 55%),
+      linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+    color:var(--text);
+    font-family:'Inter','SF Pro Display',-apple-system,sans-serif;
+    overflow:hidden;
+    letter-spacing:-0.005em;
+  }
+
+  .app { display:grid; grid-template-columns:44px 220px 1fr 332px; height:100vh; }
+
+  /* ─────── ICON NAV (far left) ─────── */
+  .iconnav {
+    background:rgba(10,5,20,0.65);
+    backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center;
+    padding:14px 0 14px;
+    gap:6px;
+  }
+  .iconnav .ic {
+    width:30px; height:30px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-dim); font-size:13px; cursor:pointer;
+  }
+  .iconnav .ic:hover { background:rgba(255,255,255,0.05); color:var(--text); }
+  .iconnav .ic.on { background:var(--cv-soft); color:var(--cv); }
+  .iconnav .ic .b { width:3px; height:18px; background:var(--cv); border-radius:2px; position:absolute; left:0; }
+  .iconnav .spacer { flex:1; }
+
+  /* ─────── SIDEBAR (customer list) ─────── */
+  .side {
+    background:rgba(15,10,30,0.55);
+    backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column;
+    padding:18px 12px 14px;
+    overflow:hidden;
+  }
+  .brand { display:flex; align-items:center; gap:9px; padding:0 6px 16px; }
+  .brand-mark {
+    width:28px; height:28px; border-radius:7px;
+    background:linear-gradient(135deg, #B677F0 0%, #7030A0 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#fff;
+    box-shadow:0 4px 12px rgba(112,48,160,0.45);
+  }
+  .brand-name { font-size:14px; font-weight:600; }
+  .search {
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:7px 10px 7px 30px;
+    font-size:11.5px; color:var(--text);
+    margin-bottom:12px;
+    width:100%;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%239990B8' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='M21 21l-4.35-4.35'/></svg>");
+    background-repeat:no-repeat; background-position:9px center;
+  }
+  .search:focus { outline:none; border-color:var(--cv); }
+  .cust-list { flex:1; overflow-y:auto; margin:0 -4px; padding:0 4px; }
+  .cust-list::-webkit-scrollbar { width:4px; }
+  .cust-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:2px; }
+  .cust {
+    display:flex; align-items:flex-start; gap:9px;
+    padding:9px 10px; margin-bottom:2px; border-radius:7px;
+    cursor:pointer; position:relative;
+  }
+  .cust:hover { background:rgba(255,255,255,0.03); }
+  .cust.on {
+    background:linear-gradient(135deg, rgba(159,91,217,0.20), rgba(112,48,160,0.08));
+    box-shadow:inset 0 0 0 1px rgba(159,91,217,0.30);
+  }
+  .cust.on::before {
+    content:''; position:absolute; left:-12px; top:8px; bottom:8px;
+    width:3px; border-radius:2px; background:var(--cv);
+    box-shadow:0 0 8px var(--cv);
+  }
+  .cust-dot {
+    width:6px; height:6px; border-radius:50%;
+    margin-top:5px; flex-shrink:0;
+    background:var(--text-dim);
+  }
+  .cust.on .cust-dot { background:var(--cv); box-shadow:0 0 6px var(--cv); }
+  .cust-info { flex:1; min-width:0; }
+  .cust-name { font-size:12px; font-weight:600; }
+  .cust-meta { font-size:10px; color:var(--text-dim); margin-top:1px; }
+  .add-btn {
+    margin-top:10px; padding:8px 10px;
+    background:rgba(159,91,217,0.10);
+    border:1px dashed rgba(159,91,217,0.40);
+    border-radius:7px;
+    color:var(--cv); font-size:11.5px; font-weight:600;
+    text-align:center; cursor:pointer;
+  }
+  .add-btn:hover { background:rgba(159,91,217,0.18); }
+
+  /* ─────── MAIN CENTER ─────── */
+  .main { padding:18px 22px 18px; overflow-y:auto; }
+  .main::-webkit-scrollbar { width:5px; }
+  .main::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:3px; }
+
+  /* Header row */
+  .topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+  .topbar h1 { font-size:22px; font-weight:600; letter-spacing:-0.02em; }
+  .topbar h1 .star { color:var(--cv); margin-left:5px; font-size:16px; }
+  .topbar .updated { font-size:11px; color:var(--text-mute); margin-top:3px; }
+  .topbar-actions { display:flex; gap:8px; }
+  .btn {
+    padding:7px 14px; font-size:11.5px; font-weight:600;
+    border-radius:7px; cursor:pointer;
+    border:1px solid var(--line-2);
+    background:rgba(255,255,255,0.03); color:var(--text-mute);
+  }
+  .btn:hover { color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .btn.primary {
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    color:#fff; border-color:transparent;
+    box-shadow:0 6px 18px rgba(112,48,160,0.40);
+  }
+  .btn.primary:hover { filter:brightness(1.1); }
+  .btn.tiny { padding:5px 11px; font-size:11px; font-weight:500; }
+
+  /* Tabs */
+  .subtabs {
+    display:flex; gap:2px; padding:3px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-bottom:14px;
+    width:fit-content;
+  }
+  .subtab {
+    padding:6px 14px; font-size:11.5px; font-weight:500;
+    color:var(--text-mute); border-radius:5px; cursor:pointer;
+  }
+  .subtab.on {
+    background:linear-gradient(135deg, #9F5BD9, #7030A0); color:#fff;
+    box-shadow:0 4px 10px rgba(112,48,160,0.30);
+  }
+
+  /* Panel base */
+  .panel {
+    background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .panel-h {
+    padding:13px 18px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-h h3 {
+    font-size:13px; font-weight:600;
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-h h3 .dot {
+    width:6px; height:6px; border-radius:50%; background:var(--cv);
+  }
+  .panel-h .stamp {
+    font-size:10px; padding:2px 7px; border-radius:4px;
+    background:var(--cv-soft); color:var(--cv); font-weight:600;
+    letter-spacing:0.4px;
+  }
+  .panel-h .actions { display:flex; gap:6px; align-items:center; }
+
+  .vw-pill {
+    display:flex; align-items:center; gap:6px;
+    padding:4px 10px; font-size:11px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line); border-radius:6px;
+    color:var(--text-mute); cursor:pointer;
+  }
+  .vw-pill::after { content:"▾"; color:var(--text-dim); margin-left:2px; font-size:9px; }
+  .filter-btn {
+    width:30px; height:26px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.04); border:1px solid var(--line); border-radius:6px;
+    color:var(--text-mute); cursor:pointer; font-size:12px;
+  }
+
+  /* Current State */
+  .current { margin-bottom:14px; }
+  .current-frame {
+    height:380px; background:#000; position:relative;
+  }
+  .current-frame iframe { width:100%; height:100%; border:none; }
+  .current-stats {
+    display:grid; grid-template-columns:repeat(7,1fr);
+    border-top:1px solid var(--line);
+  }
+  .cstat {
+    padding:14px 12px;
+    border-right:1px solid var(--line);
+  }
+  .cstat:last-child { border-right:none; }
+  .cstat-lbl { font-size:10px; color:var(--text-mute); font-weight:500; }
+  .cstat-val { font-size:18px; font-weight:600; margin-top:3px; letter-spacing:-0.02em; }
+  .cstat-val .small { font-size:11px; color:var(--text-mute); margin-left:3px; font-weight:500; }
+  .cstat-val.text { font-size:13px; }
+
+  /* Bottom row: upload | past | insights */
+  .bottom-row {
+    display:grid; grid-template-columns:1fr 1fr 1.1fr; gap:14px;
+  }
+
+  /* Upload */
+  .upload-zone {
+    margin:14px;
+    border:1.5px dashed rgba(159,91,217,0.40);
+    border-radius:10px;
+    padding:24px 14px 18px;
+    text-align:center;
+    background:rgba(159,91,217,0.04);
+    cursor:pointer;
+  }
+  .upload-zone:hover { background:rgba(159,91,217,0.08); }
+  .upload-ic {
+    width:42px; height:42px; margin:0 auto 10px;
+    border-radius:11px;
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 5px 14px rgba(112,48,160,0.40);
+    color:#fff; font-size:20px;
+  }
+  .upload-title { font-size:12.5px; font-weight:600; }
+  .upload-sub { font-size:10.5px; color:var(--text-mute); margin-top:3px; }
+  .browse {
+    margin-top:12px; padding:7px 16px;
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    border:none; border-radius:6px; color:#fff;
+    font-size:11.5px; font-weight:600; cursor:pointer;
+    box-shadow:0 3px 10px rgba(112,48,160,0.30);
+  }
+
+  /* Past Transcripts */
+  .tr-list { padding:4px 14px 12px; }
+  .tr-item {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 0; border-bottom:1px solid var(--line);
+  }
+  .tr-item:last-child { border:none; }
+  .tr-ic {
+    width:26px; height:26px; border-radius:6px;
+    background:rgba(159,91,217,0.12);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cv); font-size:12px;
+    flex-shrink:0;
+  }
+  .tr-info { flex:1; min-width:0; }
+  .tr-name { font-size:12px; font-weight:500; }
+  .tr-when { font-size:10px; color:var(--text-dim); margin-top:1px; }
+  .tr-act { color:var(--text-dim); font-size:13px; cursor:pointer; }
+
+  /* AI Insights */
+  .ai-grid {
+    padding:12px 14px;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+  }
+  .ai-tile {
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px;
+  }
+  .ai-lbl { font-size:9.5px; color:var(--text-mute); font-weight:500; }
+  .ai-val { font-size:16px; font-weight:600; margin-top:3px; letter-spacing:-0.02em; }
+  .ai-val .small { font-size:10px; color:var(--text-mute); font-weight:500; margin-left:3px; }
+  .ai-spark { margin-top:5px; height:20px; }
+  .key-sec { padding:10px 14px 14px; border-top:1px solid var(--line); }
+  .key-h { font-size:10px; color:var(--text-mute); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .key-row { display:flex; gap:7px; align-items:flex-start; font-size:11.5px; line-height:1.5; color:var(--text-mute); margin-bottom:4px; }
+  .key-row b { color:var(--text); font-weight:500; }
+  .key-bullet { color:var(--cv); flex-shrink:0; }
+
+  /* ─────── RIGHT RAIL ─────── */
+  .right { display:flex; flex-direction:column; gap:14px; padding:18px 18px 18px 0; overflow:hidden; }
+
+  /* AI Assistant block */
+  .ai-block {
+    background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border:1px solid var(--line);
+    border-radius:14px;
+    flex:1;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    min-height:0;
+  }
+  .ai-h2 {
+    padding:14px 16px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px;
+  }
+  .ai-icon-big {
+    width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(135deg, #B677F0, #7030A0);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:14px;
+  }
+  .ai-title { font-size:13px; font-weight:600; }
+  .ai-sub { font-size:10px; color:var(--text-dim); margin-top:1px; }
+
+  .ai-stream {
+    flex:1; overflow-y:auto;
+    padding:14px;
+    display:flex; flex-direction:column; gap:10px;
+    min-height:0;
+  }
+  .ai-stream::-webkit-scrollbar { width:4px; }
+  .ai-stream::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:2px; }
+
+  .bubble {
+    padding:10px 12px; border-radius:10px;
+    font-size:11.5px; line-height:1.55;
+    max-width:88%;
+  }
+  .bubble.ai {
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    color:var(--text);
+    align-self:flex-start;
+  }
+  .bubble.ai .src {
+    margin-top:6px; padding-top:6px; border-top:1px solid var(--line);
+    font-size:9.5px; color:var(--text-dim);
+  }
+  .bubble.user {
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    color:#fff;
+    align-self:flex-end;
+    box-shadow:0 4px 12px rgba(112,48,160,0.20);
+  }
+  .bubble strong { color:var(--cv-hi); }
+  .bubble.user strong { color:#fff; text-decoration:underline; text-decoration-color:rgba(255,255,255,0.5); }
+
+  .ai-input-row {
+    border-top:1px solid var(--line);
+    padding:10px 12px;
+    display:flex; gap:6px;
+    flex-shrink:0;
+  }
+  .ai-input {
+    flex:1;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:8px 10px; font-size:11.5px; color:var(--text);
+    font-family:inherit;
+  }
+  .ai-input:focus { outline:none; border-color:var(--cv); }
+  .ai-send {
+    width:32px; height:32px; border-radius:7px;
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    border:none; color:#fff; cursor:pointer;
+    box-shadow:0 4px 10px rgba(112,48,160,0.25);
+    flex-shrink:0;
+    font-size:13px;
+  }
+
+  /* Future State block */
+  .future-block {
+    background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .future-h {
+    padding:13px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .future-h h3 { font-size:13px; font-weight:600; }
+  .future-tabs {
+    display:flex; gap:2px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--line);
+    border-radius:6px; padding:2px;
+  }
+  .ftab {
+    padding:4px 10px; font-size:10.5px; font-weight:500;
+    color:var(--text-mute); border-radius:4px; cursor:pointer;
+  }
+  .ftab.on { background:linear-gradient(135deg, #9F5BD9, #7030A0); color:#fff; }
+
+  .fs-card {
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .fs-card:last-child { border:none; }
+  .fs-card-h {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .fs-card-h .nm { font-size:12px; font-weight:600; }
+  .fs-card-h .nm .sm { font-size:9px; color:var(--cv); margin-left:5px; font-weight:500; padding:1px 5px; background:var(--cv-soft); border-radius:3px; }
+  .fs-thumb {
+    height:80px; background:#000; border-radius:6px;
+    overflow:hidden; margin-bottom:8px;
+  }
+  .fs-thumb iframe { width:100%; height:100%; border:none; pointer-events:none; }
+  .fs-stats { display:flex; gap:10px; font-size:10.5px; color:var(--text-mute); margin-bottom:8px; }
+  .fs-stats b { color:var(--text); }
+  .fs-act {
+    display:flex; gap:6px;
+  }
+  .fs-act .btn { flex:1; font-size:10.5px; padding:5px 0; text-align:center; }
+  .fs-act .btn.primary { padding:5px 0; }
+</style></head><body>
+
+<div class="app">
+
+  <!-- ICON NAV -->
+  <nav class="iconnav">
+    <div class="ic on">▦</div>
+    <div class="ic">⌂</div>
+    <div class="ic">◫</div>
+    <div class="ic">📄</div>
+    <div class="ic">⚙</div>
+    <div class="ic">📊</div>
+    <div class="spacer"></div>
+    <div class="ic">?</div>
+    <div class="ic">⛶</div>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">CV</div>
+      <div class="brand-name">Commvault</div>
+    </div>
+    <input class="search" placeholder="Search customers…" type="text">
+    <div class="cust-list">
+      <div class="cust on">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Starlight Healthcare</div>
+          <div class="cust-meta">1,250 VMs · 320 TB · 6 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Nova Financial</div>
+          <div class="cust-meta">820 VMs · 410 TB · 3 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Pioneer Manufacturing</div>
+          <div class="cust-meta">1,540 VMs · 680 TB · 5 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Summit Education</div>
+          <div class="cust-meta">340 VMs · 90 TB · 2 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Apex Retail Group</div>
+          <div class="cust-meta">2,180 VMs · 1.2 PB · 8 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Bluwave Energy</div>
+          <div class="cust-meta">670 VMs · 240 TB · 4 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Evergreen Logistics</div>
+          <div class="cust-meta">1,090 VMs · 520 TB · 7 sites</div>
+        </div>
+      </div>
+    </div>
+    <div class="add-btn">+ Add Customer</div>
+  </aside>
+
+  <!-- MAIN CENTER -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Starlight Healthcare<span class="star">✦</span></h1>
+        <div class="updated">Last updated: May 02, 2026 · 12:48 PM</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn">Update Record</button>
+        <button class="btn primary">Export Report</button>
+      </div>
+    </div>
+
+    <div class="subtabs">
+      <div class="subtab on">Overview</div>
+      <div class="subtab">Insights</div>
+      <div class="subtab">Reports</div>
+      <div class="subtab">Recommendations</div>
+    </div>
+
+    <!-- CURRENT STATE -->
+    <div class="panel current">
+      <div class="panel-h">
+        <h3><span class="dot"></span>Current State<span class="stamp">GENERATED</span></h3>
+        <div class="actions">
+          <div class="vw-pill">View · Layout</div>
+          <button class="filter-btn">⚙</button>
+          <button class="btn tiny">Edit ↗</button>
+        </div>
+      </div>
+      <div class="current-frame">
+        <iframe src="/?scenario=competitor_avamar"></iframe>
+      </div>
+      <div class="current-stats">
+        <div class="cstat"><div class="cstat-lbl">VMs</div><div class="cstat-val">1,250</div></div>
+        <div class="cstat"><div class="cstat-lbl">Storage</div><div class="cstat-val">320<span class="small">TB</span></div></div>
+        <div class="cstat"><div class="cstat-lbl">Workloads</div><div class="cstat-val">12</div></div>
+        <div class="cstat"><div class="cstat-lbl">Sites</div><div class="cstat-val">6</div></div>
+        <div class="cstat"><div class="cstat-lbl">Backup Vendor</div><div class="cstat-val text">Avamar+DD</div></div>
+        <div class="cstat"><div class="cstat-lbl">Hypervisor</div><div class="cstat-val text">VMware</div></div>
+        <div class="cstat"><div class="cstat-lbl">Compliance</div><div class="cstat-val text">HIPAA · SOX</div></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+      <!-- Upload -->
+      <div class="panel">
+        <div class="panel-h"><h3><span class="dot"></span>Upload Transcript</h3></div>
+        <div class="upload-zone">
+          <div class="upload-ic">☁</div>
+          <div class="upload-title">Drag and drop your transcript here</div>
+          <div class="upload-sub">.txt · .vtt · .docx · or paste text</div>
+          <button class="browse">Browse Files</button>
+        </div>
+      </div>
+      <!-- Past Transcripts -->
+      <div class="panel">
+        <div class="panel-h"><h3><span class="dot"></span>Past Transcripts</h3><span style="font-size:11px;color:var(--text-dim)">4</span></div>
+        <div class="tr-list">
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">QBR_April_2026.vtt</div><div class="tr-when">2h ago · 6 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">CIO_Cloud_Strategy.txt</div><div class="tr-when">04-25 · 8 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">Stakeholder_Map.docx</div><div class="tr-when">04-18 · 11 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">Discovery_T1.vtt</div><div class="tr-when">04-09 · 14 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+        </div>
+      </div>
+      <!-- AI-Extracted Insights -->
+      <div class="panel">
+        <div class="panel-h"><h3><span class="dot"></span>AI-Extracted Insights</h3></div>
+        <svg width="0" height="0" style="position:absolute"><defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#9F5BD9"/>
+            <stop offset="100%" stop-color="#9F5BD9" stop-opacity="0"/>
+          </linearGradient>
+        </defs></svg>
+        <div class="ai-grid">
+          <div class="ai-tile">
+            <div class="ai-lbl">VM Count</div>
+            <div class="ai-val">1,250</div>
+            <svg class="ai-spark" width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,18 L12,16 L24,14 L36,12 L48,13 L60,9 L72,8 L84,5 L100,3 L100,20 L0,20 Z"/>
+              <path fill="none" stroke="#9F5BD9" stroke-width="1.5" d="M0,18 L12,16 L24,14 L36,12 L48,13 L60,9 L72,8 L84,5 L100,3"/>
+            </svg>
+          </div>
+          <div class="ai-tile">
+            <div class="ai-lbl">Storage</div>
+            <div class="ai-val">320<span class="small">TB</span></div>
+            <svg class="ai-spark" width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,18 L12,16 L24,14 L36,11 L48,12 L60,8 L72,6 L84,5 L100,2 L100,20 L0,20 Z"/>
+              <path fill="none" stroke="#9F5BD9" stroke-width="1.5" d="M0,18 L12,16 L24,14 L36,11 L48,12 L60,8 L72,6 L84,5 L100,2"/>
+            </svg>
+          </div>
+          <div class="ai-tile">
+            <div class="ai-lbl">Workloads</div>
+            <div class="ai-val">12</div>
+            <svg class="ai-spark" width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,15 L12,14 L24,12 L36,11 L48,9 L60,10 L72,7 L84,5 L100,4 L100,20 L0,20 Z"/>
+              <path fill="none" stroke="#9F5BD9" stroke-width="1.5" d="M0,15 L12,14 L24,12 L36,11 L48,9 L60,10 L72,7 L84,5 L100,4"/>
+            </svg>
+          </div>
+        </div>
+        <div class="key-sec">
+          <div class="key-h">Key Takeaways</div>
+          <div class="key-row"><span class="key-bullet">▸</span><span><b>Avamar EOL 2027-Q1</b> — Dell hardware refresh forcing decision</span></div>
+          <div class="key-row"><span class="key-bullet">▸</span><span><b>HIPAA + SOX</b> annual audit Q3</span></div>
+          <div class="key-row"><span class="key-bullet">▸</span><span><b>Cloud migration</b> AWS-first 2-yr plan</span></div>
+          <div class="key-row"><span class="key-bullet">▸</span><span><b>Budget</b> $1.2M approved · FY26 capex</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT RAIL -->
+  <aside class="right">
+
+    <!-- AI ASSISTANT -->
+    <div class="ai-block">
+      <div class="ai-h2">
+        <div class="ai-icon-big">⚡</div>
+        <div>
+          <div class="ai-title">AI Architecture Assistant</div>
+          <div class="ai-sub">Powered by Commvault Copilot</div>
+        </div>
+      </div>
+      <div class="ai-stream">
+        <div class="bubble user">
+          Try this: in plain English, tell me about the customer's backup environment and I'll update the diagram.
+        </div>
+        <div class="bubble ai">
+          <p>Based on the QBR transcript, Starlight Healthcare runs <strong>Avamar 19.7</strong> with <strong>two Data Domain DD9300</strong> appliances across Primary DC + DR. Workloads include VMs, Exchange, SQL, Epic EHR, and File Servers.</p>
+          <div class="src">From: QBR_April_2026.vtt · 6 facts extracted</div>
+        </div>
+        <div class="bubble user">
+          What's the most likely Future State if we go Commvault SaaS?
+        </div>
+        <div class="bubble ai">
+          <p>Recommended: <strong>Commvault Cloud (SaaS)</strong> + on-prem HSX-3 for fast restores + <strong>AWS AGP Cool</strong> for long-term retention. Adds Cleanroom to satisfy HIPAA recovery rehearsal requirement. See "Future State 1" below.</p>
+        </div>
+        <div class="bubble user">
+          Add EKS workload — they're piloting microservices on AWS.
+        </div>
+        <div class="bubble ai">
+          <p>Added <strong>EKS</strong> as a workload chip on the AWS Production site in Future State v3. Diagram updated.</p>
+        </div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" placeholder="Ask or describe a change…" type="text">
+        <button class="ai-send">↑</button>
+      </div>
+    </div>
+
+    <!-- FUTURE STATE -->
+    <div class="future-block">
+      <div class="future-h">
+        <h3>Future State</h3>
+        <div class="future-tabs">
+          <div class="ftab on">Recommended</div>
+          <div class="ftab">All Drafts</div>
+        </div>
+      </div>
+      <div class="fs-card">
+        <div class="fs-card-h">
+          <div class="nm">Future State 1<span class="sm">BEST FIT</span></div>
+        </div>
+        <div class="fs-thumb"><iframe src="/?scenario=competitor_commvault"></iframe></div>
+        <div class="fs-stats"><span><b>3</b> sites</span><span><b>HSX-3</b></span><span><b>AWS AGP</b></span></div>
+        <div class="fs-act">
+          <button class="btn tiny">Compare</button>
+          <button class="btn primary tiny">View ↗</button>
+        </div>
+      </div>
+      <div class="fs-card">
+        <div class="fs-card-h">
+          <div class="nm">Future State 2<span class="sm" style="background:rgba(91,217,159,0.18);color:var(--ok)">CLOUD-FIRST</span></div>
+        </div>
+        <div class="fs-thumb"><iframe src="/?scenario=competitor_commvault"></iframe></div>
+        <div class="fs-stats"><span><b>1</b> site</span><span><b>SaaS</b></span><span><b>S3 + AGP</b></span></div>
+        <div class="fs-act">
+          <button class="btn tiny">Compare</button>
+          <button class="btn primary tiny">View ↗</button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+</body></html>

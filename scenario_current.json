@@ -1,89 +1,40 @@
 {
-  "title": "Primary DC + DR + AWS — Native S3 (1st) + AGP Cool (2nd)",
-  "unity": true,
+  "title": "Avamar Current State — Primary + DR via Data Domain + AWS AGP",
+  "unity": false,
   "sites": [
     {
       "id": "primary",
       "name": "Primary DC",
-      "workloads": ["VMware", "VMs", "File Servers", "Kubernetes"],
-      "vm_count": 120,
-      "storage_tb": 150,
-      "backup_software": "commvault",
-      "backup_target": "netapp",
-      "media_agents": 2,
+      "workloads": ["VMs", "Databases", "File Servers", "Exchange"],
+      "vm_count": 280,
+      "storage_tb": 180,
+      "backup_software": "avamar",
+      "backup_target": "data_domain",
+      "media_agents": 3,
       "retention_days": 30
     },
     {
       "id": "dr",
       "name": "DR Site",
-      "workloads": ["VMware", "VMs", "File Servers", "Kubernetes"],
+      "workloads": ["VMs", "Databases", "File Servers"],
       "vm_count": 120,
-      "storage_tb": 150,
-      "backup_software": "commvault",
-      "backup_target": "netapp",
-      "media_agents": 2,
-      "retention_days": 30
-    },
-    {
-      "id": "aws_prod",
-      "type": "cloud",
-      "cloud": "aws",
-      "region": "us-east-1",
-      "name": "AWS Production",
-      "deployment": "saas",
-      "workloads": ["EC2", "S3", "RDS", "Lambda"],
-      "vm_count": 200,
       "storage_tb": 80,
-      "backup_software": "commvault",
-      "backup_target": "none",
+      "backup_software": "avamar",
+      "backup_target": "data_domain",
       "media_agents": 2,
-      "retention_days": 30,
-      "destinations": {
-        "native": [
-          {"service": "aws_s3", "label": "S3 Standard", "capacity_tb": 80}
-        ],
-        "agp": [
-          {"tier": "cool", "capacity_tb": 150}
-        ]
-      }
+      "retention_days": 14
     }
   ],
   "connections": [
-    {"from": "primary", "to": "dr", "speed": "Replication"}
+    {"from": "primary", "to": "dr", "speed": "DD Boost Replication"}
   ],
   "agps": [
     {
       "cloud_provider": "aws",
       "tier": "Cool Tier",
-      "capacity_tb": 150,
-      "retention_days": 180,
-      "callout": "All Backups Replicated to AGP",
-      "cleanroom": {
-        "tenant": "Customer Tenant",
-        "capacity_tb": 50
-      }
-    }
-  ],
-
-  "_disabled_sites": [
-    {
-      "id": "saas",
-      "type": "saas",
-      "name": "SaaS Tenants",
-      "apps": ["AD/Entra ID", "M365"],
-      "callout": {
-        "message": "All SaaS Data Protected to Azure AGP",
-        "kind": "positive"
-      }
-    }
-  ],
-  "_disabled_agps": [
-    {
-      "cloud_provider": "azure",
-      "tier": "Cool Tier",
-      "capacity_tb": 50,
-      "retention_days": 180,
-      "callout": "M365 + Entra ID to Azure Air Gap"
+      "capacity_tb": 200,
+      "retention_days": 365,
+      "callout": "Long-term retention to AWS"
     }
   ]
 }

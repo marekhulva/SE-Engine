@@ -121,6 +121,7 @@ VENDOR_ARCH = {
         'ma_badge': 'MA',
         'ma_label_singular': 'Media Agent',
         'ma_label_plural':   'Media Agents',
+        'badge_fill': '#7030A0',     # Commvault purple
     },
     'veeam': {
         'cs_badge': 'VBR',
@@ -128,6 +129,7 @@ VENDOR_ARCH = {
         'ma_badge': 'PX',
         'ma_label_singular': 'Backup Proxy',
         'ma_label_plural':   'Backup Proxies',
+        'badge_fill': '#00B143',     # Veeam green
     },
     'networker': {
         'cs_badge': 'NW',
@@ -135,6 +137,7 @@ VENDOR_ARCH = {
         'ma_badge': 'SN',
         'ma_label_singular': 'Storage Node',
         'ma_label_plural':   'Storage Nodes',
+        'badge_fill': '#0076CE',     # Dell blue
     },
     'avamar': {
         'cs_badge': 'AV',
@@ -142,6 +145,7 @@ VENDOR_ARCH = {
         'ma_badge': 'DM',
         'ma_label_singular': 'Data Mover',
         'ma_label_plural':   'Data Movers',
+        'badge_fill': '#0076CE',     # Dell blue
     },
 }
 

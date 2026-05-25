@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>SE Hub — Concept 1: CRM Workspace</title>
+<style>
+  :root {
+    --bg:#0a0a10; --bg-card:#12151d; --bg-card-2:#161b27; --line:#1e2435; --line-2:#263045;
+    --text:#f1f5f9; --text-mute:#94a3b8; --text-dim:#64748b;
+    --cv:#7030A0; --cv2:#834895; --cv-soft:#3a1a55; --cv-light:#C1A3C9;
+    --ok:#22c55e; --warn:#fbbf24; --err:#f87171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; height:100vh; overflow:hidden; }
+
+  /* ── Header ── */
+  .header { height:54px; background:var(--bg-card); border-bottom:1px solid var(--line);
+            display:flex; align-items:center; padding:0 20px; gap:18px; }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-mark { width:32px; height:32px; background:linear-gradient(135deg,var(--cv) 0%,var(--cv2) 100%);
+               border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; }
+  .logo-text { font-size:14px; font-weight:600; }
+  .logo-sub { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; }
+  .search { flex:1; max-width:480px; background:var(--bg-card-2); border:1px solid var(--line);
+            border-radius:6px; padding:7px 12px; font-size:13px; color:var(--text); }
+  .nav { display:flex; gap:4px; margin-left:auto; }
+  .nav a { font-size:12px; color:var(--text-mute); padding:6px 12px; border-radius:5px; cursor:pointer; }
+  .nav a.active { background:var(--cv-soft); color:var(--cv-light); }
+  .nav a:hover { color:var(--text); }
+  .live { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ok); }
+  .live-dot { width:7px; height:7px; background:var(--ok); border-radius:50%; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Main 3-pane layout ── */
+  .main { display:grid; grid-template-columns:280px 1fr 320px; height:calc(100vh - 54px); }
+
+  /* Left rail */
+  .left { background:var(--bg-card); border-right:1px solid var(--line); overflow-y:auto; }
+  .left-head { padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .left-head h2 { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; font-weight:600; }
+  .new-btn { background:var(--cv); color:#fff; border:none; padding:5px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:500; }
+  .filter-pills { padding:0 16px 10px; display:flex; gap:6px; flex-wrap:wrap; }
+  .pill { font-size:10px; padding:3px 9px; border-radius:10px; background:var(--bg-card-2); color:var(--text-dim); cursor:pointer; }
+  .pill.on { background:var(--cv-soft); color:var(--cv-light); }
+  .cust { padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .cust:hover { background:var(--bg-card-2); }
+  .cust.selected { background:var(--cv-soft); border-left:3px solid var(--cv); padding-left:13px; }
+  .cust-name { font-size:13px; font-weight:600; }
+  .cust-meta { font-size:11px; color:var(--text-dim); margin-top:3px; display:flex; gap:8px; }
+  .stage-tag { font-size:9px; padding:1px 6px; border-radius:3px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+  .stage-discovery { background:rgba(59,130,246,0.18); color:#60a5fa; }
+  .stage-poc       { background:rgba(168,85,247,0.18); color:#c084fc; }
+  .stage-neg       { background:rgba(251,191,36,0.18); color:#fbbf24; }
+  .stage-won       { background:rgba(34,197,94,0.18); color:#4ade80; }
+  .stage-risk      { background:rgba(248,113,113,0.18); color:#f87171; }
+
+  /* Center main */
+  .center { padding:20px 28px 28px; overflow-y:auto; }
+  .crumb { font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+  .crumb b { color:var(--text-mute); }
+  .ctitle { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+  .ctitle h1 { font-size:24px; font-weight:600; letter-spacing:-0.4px; }
+  .ctitle-sub { font-size:13px; color:var(--text-mute); margin-top:4px; }
+  .ctitle-actions { display:flex; gap:8px; }
+  .btn { padding:7px 14px; font-size:12px; font-weight:500; border-radius:5px; border:1px solid var(--line); background:var(--bg-card); color:var(--text-mute); cursor:pointer; }
+  .btn:hover { color:var(--text); border-color:var(--line-2); }
+  .btn.primary { background:var(--cv); color:#fff; border-color:var(--cv); }
+  .btn.primary:hover { background:var(--cv2); }
+
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+  .tab { font-size:13px; color:var(--text-mute); padding:10px 16px; cursor:pointer; border-bottom:2px solid transparent; }
+  .tab.active { color:var(--cv-light); border-bottom-color:var(--cv); }
+
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+  .stat { background:var(--bg-card); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .stat-lbl { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; }
+  .stat-val { font-size:22px; font-weight:600; margin-top:4px; }
+  .stat-delta { font-size:11px; margin-top:3px; color:var(--text-mute); }
+  .delta-up { color:var(--ok); }
+  .delta-down { color:var(--err); }
+
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; }
+  .panel { background:var(--bg-card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .panel-h { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  .panel-h h3 { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-mute); }
+  .panel-body { padding:14px 16px; }
+  .panel-link { font-size:11px; color:var(--cv-light); text-decoration:none; }
+
+  .arch-thumb { background:#000; height:160px; display:flex; align-items:center; justify-content:center;
+                color:var(--text-dim); font-size:11px; border-bottom:1px solid var(--line); position:relative; }
+  .arch-thumb iframe { width:100%; height:100%; border:none; background:#000; }
+  .arch-tag { position:absolute; top:8px; left:8px; font-size:10px; padding:2px 8px;
+              background:rgba(0,0,0,0.7); border:1px solid var(--line-2); border-radius:3px; color:var(--text); font-weight:600; }
+  .arch-tag.fut { background:var(--cv-soft); color:var(--cv-light); border-color:var(--cv); }
+
+  .fact-list { display:flex; flex-direction:column; gap:0; }
+  .fact { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .fact:last-child { border-bottom:none; }
+  .fact .k { color:var(--text-dim); }
+  .fact .v { color:var(--text); font-weight:500; }
+  .fact .src { font-size:10px; color:var(--cv-light); margin-left:6px; cursor:help; }
+
+  .timeline-item { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:12px; }
+  .timeline-item:last-child { border-bottom:none; }
+  .ti-icon { width:24px; height:24px; border-radius:50%; background:var(--cv-soft); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+  .ti-content { flex:1; }
+  .ti-when { font-size:10px; color:var(--text-dim); }
+
+  /* Right rail */
+  .right { background:var(--bg-card); border-left:1px solid var(--line); overflow-y:auto; padding:20px 16px; }
+  .right h3 { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:10px; }
+  .upload-zone { border:1.5px dashed var(--cv); border-radius:8px; padding:18px 12px; text-align:center; margin-bottom:18px; background:rgba(112,48,160,0.05); }
+  .upload-zone .ic { font-size:24px; margin-bottom:6px; }
+  .upload-zone p { font-size:12px; color:var(--text-mute); }
+  .upload-zone p b { color:var(--cv-light); }
+  .feed-item { padding:10px 0; border-bottom:1px solid var(--line); font-size:12px; color:var(--text-mute); line-height:1.5; }
+  .feed-item:last-child { border-bottom:none; }
+  .feed-item b { color:var(--text); }
+  .feed-when { font-size:10px; color:var(--text-dim); }
+</style></head><body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">CV</div>
+    <div>
+      <div class="logo-text">SE Hub</div>
+      <div class="logo-sub">Sales Engineering · Commvault</div>
+    </div>
+  </div>
+  <input class="search" placeholder="Search customers, transcripts, deals…" type="text">
+  <div class="nav">
+    <a class="active">Customers</a><a>Pipeline</a><a>Library</a><a>Reports</a>
+  </div>
+  <div class="live"><div class="live-dot"></div>Synced 12s ago</div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: customer list -->
+  <div class="left">
+    <div class="left-head">
+      <h2>My Accounts (12)</h2>
+      <button class="new-btn">+ New</button>
+    </div>
+    <div class="filter-pills">
+      <span class="pill on">All</span><span class="pill">Active</span>
+      <span class="pill">POC</span><span class="pill">At Risk</span>
+    </div>
+    <div class="cust selected">
+      <div class="cust-name">Acme Corp</div>
+      <div class="cust-meta"><span>Veeam → CV</span><span class="stage-tag stage-poc">POC</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Globex Industries</div>
+      <div class="cust-meta"><span>Rubrik replace</span><span class="stage-tag stage-discovery">Disc</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Initech Systems</div>
+      <div class="cust-meta"><span>Cohesity displace</span><span class="stage-tag stage-neg">Neg</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Stark Industries</div>
+      <div class="cust-meta"><span>NetWorker → SaaS</span><span class="stage-tag stage-discovery">Disc</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Wayne Enterprises</div>
+      <div class="cust-meta"><span>Avamar EOL</span><span class="stage-tag stage-poc">POC</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Pied Piper</div>
+      <div class="cust-meta"><span>Greenfield Cloud</span><span class="stage-tag stage-won">Won</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Hooli</div>
+      <div class="cust-meta"><span>Veeam expand</span><span class="stage-tag stage-risk">Risk</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Umbrella Corp</div>
+      <div class="cust-meta"><span>Multi-cloud</span><span class="stage-tag stage-discovery">Disc</span></div>
+    </div>
+    <div class="cust">
+      <div class="cust-name">Cyberdyne Systems</div>
+      <div class="cust-meta"><span>Unitrends → CV</span><span class="stage-tag stage-neg">Neg</span></div>
+    </div>
+  </div>
+
+  <!-- CENTER: customer detail -->
+  <div class="center">
+    <div class="crumb"><b>Customers</b> · Acme Corp</div>
+    <div class="ctitle">
+      <div>
+        <h1>Acme Corp</h1>
+        <div class="ctitle-sub">Manufacturing · ~3,500 employees · Veeam B&amp;R 12 + Data Domain · POC week 3 of 4</div>
+      </div>
+      <div class="ctitle-actions">
+        <button class="btn">Open Diagram ↗</button>
+        <button class="btn primary">+ Future State</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">Overview</div>
+      <div class="tab">Current State</div>
+      <div class="tab">Future State</div>
+      <div class="tab">Transcripts (4)</div>
+      <div class="tab">Recommendations</div>
+      <div class="tab">Notes</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-lbl">Production VMs</div>
+        <div class="stat-val">282</div>
+        <div class="stat-delta delta-up">↑ 14 since Apr</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Protected Storage</div>
+        <div class="stat-val">186 TB</div>
+        <div class="stat-delta">3.1× dedup ratio</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Sites</div>
+        <div class="stat-val">2</div>
+        <div class="stat-delta">Primary DC + DR</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Annual Backup Spend</div>
+        <div class="stat-val">$412K</div>
+        <div class="stat-delta delta-down">↓ proj. 38% with CV SaaS</div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="panel">
+        <div class="panel-h">
+          <h3>Current State Architecture</h3>
+          <a class="panel-link">Open in editor ↗</a>
+        </div>
+        <div class="arch-thumb">
+          <span class="arch-tag">CURRENT</span>
+          <iframe src="/?scenario=competitor_avamar" loading="lazy"></iframe>
+        </div>
+        <div class="panel-body">
+          <div class="fact"><span class="k">Backup Software</span><span class="v">Veeam B&amp;R 12.1</span></div>
+          <div class="fact"><span class="k">Storage</span><span class="v">2× Data Domain DD9300</span></div>
+          <div class="fact"><span class="k">Hypervisor</span><span class="v">VMware vSphere 8.0</span></div>
+          <div class="fact"><span class="k">Workloads</span><span class="v">VMs · SQL · Exchange · File</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">
+          <h3>Proposed Future State</h3>
+          <a class="panel-link">Edit ↗</a>
+        </div>
+        <div class="arch-thumb">
+          <span class="arch-tag fut">FUTURE</span>
+          <iframe src="/?scenario=competitor_commvault" loading="lazy"></iframe>
+        </div>
+        <div class="panel-body">
+          <div class="fact"><span class="k">Backup Software</span><span class="v">Commvault SaaS</span></div>
+          <div class="fact"><span class="k">On-prem Target</span><span class="v">HSX-3 (3-node)</span></div>
+          <div class="fact"><span class="k">Air Gap</span><span class="v">AWS Cool · 200 TB</span></div>
+          <div class="fact"><span class="k">Cleanroom</span><span class="v">50 TB customer tenant</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="panel">
+        <div class="panel-h"><h3>Extracted from Transcripts</h3><a class="panel-link">View all ↗</a></div>
+        <div class="panel-body">
+          <div class="fact-list">
+            <div class="fact"><span class="k">Decision committee</span><span class="v">CIO + Director of Infra · 4 people <span class="src">[T2 · 04-18]</span></span></div>
+            <div class="fact"><span class="k">Veeam contract renewal</span><span class="v">Jul 31, 2026 <span class="src">[T1 · 04-09]</span></span></div>
+            <div class="fact"><span class="k">Pain points</span><span class="v">Slow restores · DD lifecycle EOL <span class="src">[T1, T3]</span></span></div>
+            <div class="fact"><span class="k">Compliance</span><span class="v">SOX + ISO 27001 (annual audit Q3) <span class="src">[T2]</span></span></div>
+            <div class="fact"><span class="k">Cloud strategy</span><span class="v">"AWS-first" — 2 yr migration <span class="src">[T3 · 04-25]</span></span></div>
+            <div class="fact"><span class="k">Budget</span><span class="v">Approved $850K replace · FY26 capex <span class="src">[T4]</span></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Recent Activity</h3><a class="panel-link">View all ↗</a></div>
+        <div class="panel-body">
+          <div class="timeline-item">
+            <div class="ti-icon">📝</div>
+            <div class="ti-content">
+              <div><b>Transcript T4</b> uploaded · 6 facts extracted</div>
+              <div class="ti-when">2h ago</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-icon">📐</div>
+            <div class="ti-content">
+              <div><b>Future State v3</b> generated · added Cleanroom</div>
+              <div class="ti-when">yesterday</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-icon">💼</div>
+            <div class="ti-content">
+              <div><b>POC Day 12</b> completed · restores tested</div>
+              <div class="ti-when">2 days ago</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-icon">🎯</div>
+            <div class="ti-content">
+              <div><b>Stage</b> moved Discovery → POC</div>
+              <div class="ti-when">3 weeks ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: upload + activity -->
+  <div class="right">
+    <h3>Quick Capture</h3>
+    <div class="upload-zone">
+      <div class="ic">📤</div>
+      <p><b>Drop transcript</b><br>or paste text · we extract facts automatically</p>
+    </div>
+    <h3>Live Feed (all accounts)</h3>
+    <div class="feed-item">
+      <div><b>Globex</b>: meeting transcript flagged "considering Cohesity"</div>
+      <div class="feed-when">12 min ago</div>
+    </div>
+    <div class="feed-item">
+      <div><b>Stark Industries</b>: 3 new VM counts logged (1,200 → 1,247)</div>
+      <div class="feed-when">38 min ago</div>
+    </div>
+    <div class="feed-item">
+      <div><b>Hooli</b>: stage moved POC → At Risk · churn signal</div>
+      <div class="feed-when">2h ago</div>
+    </div>
+    <div class="feed-item">
+      <div><b>Pied Piper</b>: contract signed · $1.4M ARR closed-won 🎉</div>
+      <div class="feed-when">yesterday</div>
+    </div>
+    <div class="feed-item">
+      <div><b>Wayne Ent</b>: Avamar EOL date confirmed 2027-Q1</div>
+      <div class="feed-when">2 days ago</div>
+    </div>
+  </div>
+
+</div></body></html>

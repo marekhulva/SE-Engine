@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>SE Hub — dashboard concepts</title>
+<style>
+  body { background:#0a0a10; color:#e2e8f0; font-family:'Inter',-apple-system,sans-serif; margin:0; padding:48px 32px; }
+  h1 { margin:0 0 8px; font-size:28px; font-weight:600; letter-spacing:-0.5px; }
+  .lead { color:#94a3b8; max-width:780px; margin-bottom:36px; line-height:1.5; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:18px; max-width:1280px; }
+  a.concept { display:block; text-decoration:none; color:inherit; background:#12151d;
+              border:1px solid #1e2435; border-radius:12px; padding:18px 20px; transition:.15s; }
+  a.concept:hover { border-color:#7030A0; transform:translateY(-2px); }
+  .num { display:inline-block; width:26px; height:26px; border-radius:50%; background:#7030A0;
+         color:#fff; font-size:12px; font-weight:700; line-height:26px; text-align:center; margin-right:10px; }
+  .ttl { font-size:16px; font-weight:600; }
+  .sub { font-size:11px; color:#7030A0; text-transform:uppercase; letter-spacing:1px; margin:8px 0 4px; font-weight:600; }
+  .desc { font-size:13px; color:#94a3b8; line-height:1.55; }
+  .pros { font-size:12px; color:#22c55e; margin-top:8px; }
+  .cons { font-size:12px; color:#fbbf24; margin-top:2px; }
+</style></head><body>
+<h1>SE Hub — 5 dashboard concepts</h1>
+<p class="lead">
+  Five different ways to organize the platform: customer repository (transcripts → facts → architecture)
+  + Current State / Future State diagrams. Same demo data across all 5 so you're choosing the layout, not
+  the content. Pick one (or "1 + 4 mash-up") and we'll build it.
+</p>
+<div class="grid">
+
+<a class="concept" href="/design/dashboard_concept_1">
+  <div><span class="num">1</span><span class="ttl">CRM Workspace</span></div>
+  <div class="sub">Salesforce-Lightning style</div>
+  <div class="desc">Left: customer list. Center: tabbed detail (Overview / Current / Future / Transcripts / Recs).
+    Right: live activity. Familiar; SEs feel at home day one.</div>
+  <div class="pros">+ Familiar muscle memory · scales to 100s of accounts</div>
+  <div class="cons">— A bit "spreadsheet of customers"; less visual punch on day one</div>
+</a>
+
+<a class="concept" href="/design/dashboard_concept_2">
+  <div><span class="num">2</span><span class="ttl">Pipeline Kanban</span></div>
+  <div class="sub">Sales-stage cards</div>
+  <div class="desc">Customer cards grouped by deal stage (Discovery → POC → Negotiation → Closed). Each card has a
+    mini architecture thumbnail + key stats. Click → opens detail.</div>
+  <div class="pros">+ Sales-pipeline-native · spatial, scannable · "where's the deal?"</div>
+  <div class="cons">— Less optimized for the "I have one customer right now" workflow</div>
+</a>
+
+<a class="concept" href="/design/dashboard_concept_3">
+  <div><span class="num">3</span><span class="ttl">Big-Picture Console</span></div>
+  <div class="sub">Aggregate-first</div>
+  <div class="desc">Hero: portfolio stats (customers, VMs protected, replaced competitors). Below: searchable
+    grid of customer tiles, each with mini-diagram thumbnails. Drill down to detail.</div>
+  <div class="pros">+ Manager-friendly · pretty for QBRs · visual</div>
+  <div class="cons">— More clicks to get to per-customer work</div>
+</a>
+
+<a class="concept" href="/design/dashboard_concept_4">
+  <div><span class="num">4</span><span class="ttl">Split-Diagram Workspace</span></div>
+  <div class="sub">Architecture-first</div>
+  <div class="desc">Customer selector at top. Main view: 50/50 split with Current State on left, Future State
+    on right. Bottom drawer: transcript upload + extracted facts. Single-customer focus.</div>
+  <div class="pros">+ The "do real work" surface · diagram-first · transcripts feed directly into the right panel</div>
+  <div class="cons">— Doesn't help a manager see the whole portfolio at a glance</div>
+</a>
+
+<a class="concept" href="/design/dashboard_concept_5">
+  <div><span class="num">5</span><span class="ttl">AI-First Conversational</span></div>
+  <div class="sub">Copilot-style</div>
+  <div class="desc">Chat interface center stage ("show me Acme", "draft a future state", "compare to industry").
+    Sidebar = customer context. Diagrams appear inline in the conversation.</div>
+  <div class="pros">+ Natural-language native · scales to "ask anything" · diagrams as artifacts</div>
+  <div class="cons">— Higher trust barrier · takes a few weeks to feel productive</div>
+</a>
+
+</div></body></html>

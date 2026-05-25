@@ -92,17 +92,23 @@ def _edge_gaps(sites_data, connections):
     return gaps
 
 
-def _pack_sites(sites, y_offset=0, gaps=None):
+def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     """Place sites left-to-right at their preferred sizes. Returns
     (shapes, rects). rects[i] is the visible container rect of the i-th
     site — what connection lines anchor to.
 
     No shrinking, no centering — the canvas is infinite. Whitespace
     naturally lives outside the containers, never inside them.
+
+    Manual positioning: pass `layouts[i] = {'x': float, 'y': float}` (inches
+    from top-left) to override auto-packing for site i. Either x or y
+    alone may be set; the other axis falls back to auto-pack.
     """
     n = len(sites)
     if gaps is None:
         gaps = [SITE_GAP] * max(0, n - 1)
+    if layouts is None:
+        layouts = [None] * n
 
     sizes = [s.preferred_size() for s in sites]
     start_x = MARGIN_LEFT
@@ -112,11 +118,17 @@ def _pack_sites(sites, y_offset=0, gaps=None):
     rects = []
     cx = start_x
     for i, (site, (sw, sh)) in enumerate(zip(sites, sizes)):
-        shapes.extend(site.render(cx, start_y, sw, sh))
-        rects.append(site.container_rect(cx, start_y, sw, sh))
-        cx += sw
-        if i < len(gaps):
-            cx += gaps[i]
+        lo = layouts[i] or {}
+        px = cx if lo.get('x') is None else lo['x']
+        py = start_y if lo.get('y') is None else lo['y']
+        shapes.extend(site.render(px, py, sw, sh))
+        rects.append(site.container_rect(px, py, sw, sh))
+        # Advance the auto-cursor only when this site was auto-placed on X.
+        # Manually-placed sites don't push subsequent auto-placed ones.
+        if lo.get('x') is None:
+            cx += sw
+            if i < len(gaps):
+                cx += gaps[i]
     return shapes, rects
 
 
@@ -452,10 +464,16 @@ def generate_layout(scenario):
         unity_card = UnityCard()
         unity_reserve = unity_card.preferred_size()[1] + 0.12
 
+    # Scenario-level `site_gap` overrides the default SITE_GAP for everyone.
+    base_gap = scenario.get('site_gap')
+    auto_gaps = _edge_gaps(sites_data, scenario.get('connections', []))
+    if isinstance(base_gap, (int, float)) and base_gap > 0:
+        auto_gaps = [float(base_gap)] * max(0, len(sites) - 1)
     site_shapes, rects = _pack_sites(
         sites,
         y_offset=unity_reserve,
-        gaps=_edge_gaps(sites_data, scenario.get('connections', [])),
+        gaps=auto_gaps,
+        layouts=[d.get('layout') for d in regular_data],
     )
     shapes.extend(site_shapes)
     shapes.extend(_route_connections(scenario, sites_data, rects, sites=sites))

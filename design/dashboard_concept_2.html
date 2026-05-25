@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>SE Hub — Concept 2: Pipeline Kanban</title>
+<style>
+  :root {
+    --bg:#0a0a10; --bg-card:#12151d; --bg-card-2:#161b27; --line:#1e2435; --line-2:#263045;
+    --text:#f1f5f9; --text-mute:#94a3b8; --text-dim:#64748b;
+    --cv:#7030A0; --cv2:#834895; --cv-soft:#3a1a55; --cv-light:#C1A3C9;
+    --ok:#22c55e; --warn:#fbbf24; --err:#f87171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; min-height:100vh; }
+
+  .header { height:54px; background:var(--bg-card); border-bottom:1px solid var(--line);
+            display:flex; align-items:center; padding:0 22px; gap:18px; position:sticky; top:0; z-index:5; }
+  .logo-mark { width:32px; height:32px; background:linear-gradient(135deg,var(--cv) 0%,var(--cv2) 100%);
+               border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .logo-text { font-size:14px; font-weight:600; }
+  .logo-sub { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; }
+  .nav { display:flex; gap:4px; margin-left:24px; }
+  .nav a { font-size:12px; color:var(--text-mute); padding:6px 12px; border-radius:5px; cursor:pointer; }
+  .nav a.active { color:var(--cv-light); background:var(--cv-soft); }
+  .filter { background:var(--bg-card-2); border:1px solid var(--line); border-radius:6px; padding:7px 12px; font-size:13px; color:var(--text); margin-left:auto; min-width:280px; }
+  .btn { padding:7px 14px; font-size:12px; font-weight:500; border-radius:5px; border:1px solid var(--line); background:var(--bg-card); color:var(--text-mute); cursor:pointer; }
+  .btn:hover { color:var(--text); border-color:var(--line-2); }
+  .btn.primary { background:var(--cv); color:#fff; border-color:var(--cv); }
+
+  /* Top stats */
+  .top-stats { display:flex; gap:14px; padding:18px 22px; background:#0d0d14; border-bottom:1px solid var(--line); }
+  .top-stat { flex:1; padding:14px 16px; background:var(--bg-card); border:1px solid var(--line); border-radius:8px; }
+  .ts-lbl { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; }
+  .ts-val { font-size:22px; font-weight:600; margin-top:4px; }
+  .ts-val .small { font-size:13px; color:var(--text-mute); margin-left:6px; font-weight:400; }
+  .ts-bar { height:4px; background:#1a1a26; border-radius:2px; overflow:hidden; margin-top:8px; }
+  .ts-bar > div { height:100%; background:linear-gradient(90deg,var(--cv),var(--cv-light)); }
+
+  /* Kanban */
+  .board { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; padding:20px 22px 40px; min-width:1240px; }
+  .col { background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:14px; min-height:600px; }
+  .col-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .col-h h3 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; }
+  .stage-tag {
+    display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:700;
+  }
+  .stage-discovery { background:rgba(59,130,246,0.18); color:#60a5fa; }
+  .stage-poc { background:rgba(168,85,247,0.18); color:#c084fc; }
+  .stage-neg { background:rgba(251,191,36,0.18); color:#fbbf24; }
+  .stage-won { background:rgba(34,197,94,0.18); color:#4ade80; }
+  .stage-risk { background:rgba(248,113,113,0.18); color:#f87171; }
+  .col-count { font-size:11px; color:var(--text-dim); }
+  .col-amt { font-size:11px; color:var(--text-mute); margin-top:2px; }
+
+  /* Card */
+  .card { background:var(--bg-card-2); border:1px solid var(--line); border-radius:8px; padding:0; margin-bottom:10px; cursor:pointer; transition:.15s; overflow:hidden; }
+  .card:hover { border-color:var(--cv); transform:translateY(-1px); }
+  .card-thumb { height:90px; background:#000; position:relative; }
+  .card-thumb iframe { width:100%; height:100%; border:none; pointer-events:none; }
+  .vendor-tag { position:absolute; top:6px; left:6px; font-size:9px; padding:2px 7px; border-radius:3px; font-weight:700; letter-spacing:0.4px; background:rgba(0,0,0,0.7); }
+  .vt-veeam { color:#4ade80; }
+  .vt-rubrik { color:#82e0d3; }
+  .vt-cohesity { color:#82d4e0; }
+  .vt-networker, .vt-avamar { color:#7fc1ff; }
+  .vt-unitrends { color:#ff8a82; }
+  .vt-greenfield { color:var(--cv-light); }
+  .card-body { padding:10px 12px; }
+  .card-name { font-size:13px; font-weight:600; margin-bottom:3px; }
+  .card-meta { font-size:11px; color:var(--text-dim); }
+  .card-stats { display:flex; gap:10px; margin-top:8px; font-size:11px; color:var(--text-mute); }
+  .card-stats b { color:var(--text); }
+  .card-foot { display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
+  .card-amt { font-size:12px; font-weight:600; color:var(--cv-light); }
+  .card-when { font-size:10px; color:var(--text-dim); }
+
+  .ammo { display:inline-flex; align-items:center; gap:4px; font-size:9px; padding:1px 6px; border-radius:3px; background:var(--cv-soft); color:var(--cv-light); margin-left:6px; }
+</style></head><body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="logo-mark">CV</div>
+    <div><div class="logo-text">SE Hub</div><div class="logo-sub">Pipeline View</div></div>
+  </div>
+  <div class="nav"><a>Customers</a><a class="active">Pipeline</a><a>Library</a><a>Reports</a></div>
+  <input class="filter" placeholder="Filter by industry, vendor, region, stage…">
+  <button class="btn primary">+ New Account</button>
+</div>
+
+<div class="top-stats">
+  <div class="top-stat">
+    <div class="ts-lbl">Pipeline ARR</div>
+    <div class="ts-val">$8.4M<span class="small">across 12 deals</span></div>
+    <div class="ts-bar"><div style="width:62%"></div></div>
+  </div>
+  <div class="top-stat">
+    <div class="ts-lbl">VMs to Protect</div>
+    <div class="ts-val">4,620<span class="small">2,180 PB</span></div>
+    <div class="ts-bar"><div style="width:48%"></div></div>
+  </div>
+  <div class="top-stat">
+    <div class="ts-lbl">Competitor Replacement</div>
+    <div class="ts-val">9<span class="small">of 12 deals</span></div>
+    <div class="ts-bar"><div style="width:75%"></div></div>
+  </div>
+  <div class="top-stat">
+    <div class="ts-lbl">Avg Deal Velocity</div>
+    <div class="ts-val">62 days<span class="small">↓ 18% YoY</span></div>
+    <div class="ts-bar"><div style="width:88%"></div></div>
+  </div>
+  <div class="top-stat">
+    <div class="ts-lbl">Hot Transcripts (7d)</div>
+    <div class="ts-val">14<span class="small">38 facts extracted</span></div>
+    <div class="ts-bar"><div style="width:55%"></div></div>
+  </div>
+</div>
+
+<div class="board">
+
+  <!-- Discovery -->
+  <div class="col">
+    <div class="col-h">
+      <div><h3><span class="stage-tag stage-discovery">Discovery</span></h3>
+        <div class="col-count">3 accounts</div><div class="col-amt">$2.1M projected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-rubrik">RUBRIK</span><iframe src="/?scenario=competitor_rubrik"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Globex Industries</div>
+        <div class="card-meta">Manufacturing · 4,000 emp</div>
+        <div class="card-stats"><span><b>500</b> VMs</span><span><b>400</b> TB</span><span><b>1</b> site</span></div>
+        <div class="card-foot"><span class="card-amt">$1.1M ARR</span><span class="card-when">2 transcripts</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-networker">NETWORKER</span><iframe src="/?scenario=competitor_networker"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Stark Industries</div>
+        <div class="card-meta">Aerospace · 12,000 emp</div>
+        <div class="card-stats"><span><b>1247</b> VMs</span><span><b>820</b> TB</span><span><b>4</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$680K ARR</span><span class="card-when">just added</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-greenfield">GREENFIELD</span><iframe src="/?scenario=competitor_commvault"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Umbrella Corp</div>
+        <div class="card-meta">Pharma · 6,500 emp</div>
+        <div class="card-stats"><span><b>340</b> VMs</span><span><b>180</b> TB</span><span><b>3</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$320K ARR</span><span class="card-when">5 days idle</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POC -->
+  <div class="col">
+    <div class="col-h">
+      <div><h3><span class="stage-tag stage-poc">POC</span></h3>
+        <div class="col-count">3 accounts</div><div class="col-amt">$3.2M projected</div></div>
+    </div>
+    <div class="card" style="border-color:var(--cv);">
+      <div class="card-thumb"><span class="vendor-tag vt-veeam">VEEAM</span><iframe src="/?scenario=competitor_veeam"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Acme Corp <span class="ammo">⚡ 4 facts</span></div>
+        <div class="card-meta">Manufacturing · 3,500 emp</div>
+        <div class="card-stats"><span><b>282</b> VMs</span><span><b>186</b> TB</span><span><b>2</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$850K ARR</span><span class="card-when">POC day 12/28</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-avamar">AVAMAR</span><iframe src="/?scenario=competitor_avamar"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Wayne Enterprises</div>
+        <div class="card-meta">Defense · 22,000 emp</div>
+        <div class="card-stats"><span><b>320</b> VMs</span><span><b>200</b> TB</span><span><b>2</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$1.2M ARR</span><span class="card-when">Avamar EOL '27</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-unitrends">UNITRENDS</span><iframe src="/?scenario=competitor_unitrends"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Soylent Industries</div>
+        <div class="card-meta">CPG · 1,200 emp</div>
+        <div class="card-stats"><span><b>120</b> VMs</span><span><b>60</b> TB</span><span><b>1</b> site</span></div>
+        <div class="card-foot"><span class="card-amt">$210K ARR</span><span class="card-when">POC week 2</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Negotiation -->
+  <div class="col">
+    <div class="col-h">
+      <div><h3><span class="stage-tag stage-neg">Negotiation</span></h3>
+        <div class="col-count">2 accounts</div><div class="col-amt">$1.8M projected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-cohesity">COHESITY</span><iframe src="/?scenario=competitor_cohesity"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Initech Systems</div>
+        <div class="card-meta">FinServ · 5,500 emp</div>
+        <div class="card-stats"><span><b>620</b> VMs</span><span><b>410</b> TB</span><span><b>3</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$1.1M ARR</span><span class="card-when">contract Q2</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-unitrends">UNITRENDS</span><iframe src="/?scenario=competitor_unitrends"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Cyberdyne Systems</div>
+        <div class="card-meta">Tech · 800 emp</div>
+        <div class="card-stats"><span><b>95</b> VMs</span><span><b>40</b> TB</span><span><b>1</b> site</span></div>
+        <div class="card-foot"><span class="card-amt">$680K ARR</span><span class="card-when">close target Jun</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Closed Won -->
+  <div class="col">
+    <div class="col-h">
+      <div><h3><span class="stage-tag stage-won">Closed Won</span></h3>
+        <div class="col-count">2 accounts</div><div class="col-amt">$1.9M ARR</div></div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-greenfield">GREENFIELD</span><iframe src="/?scenario=competitor_commvault"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Pied Piper</div>
+        <div class="card-meta">SaaS · 850 emp</div>
+        <div class="card-stats"><span><b>180</b> VMs</span><span><b>90</b> TB</span><span><b>1</b> site</span></div>
+        <div class="card-foot"><span class="card-amt">$1.4M ARR ✓</span><span class="card-when">signed yesterday</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-rubrik">RUBRIK</span><iframe src="/?scenario=competitor_rubrik"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Vandelay Industries</div>
+        <div class="card-meta">Logistics · 2,100 emp</div>
+        <div class="card-stats"><span><b>240</b> VMs</span><span><b>140</b> TB</span><span><b>2</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$520K ARR ✓</span><span class="card-when">signed Mar 28</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- At Risk -->
+  <div class="col">
+    <div class="col-h">
+      <div><h3><span class="stage-tag stage-risk">At Risk</span></h3>
+        <div class="col-count">2 accounts</div><div class="col-amt">$1.0M projected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-veeam">VEEAM</span><iframe src="/?scenario=competitor_veeam"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Hooli</div>
+        <div class="card-meta">Tech · 28,000 emp</div>
+        <div class="card-stats"><span><b>2100</b> VMs</span><span><b>1.4</b> PB</span><span><b>5</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$680K ARR</span><span class="card-when">churn signal</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-thumb"><span class="vendor-tag vt-cohesity">COHESITY</span><iframe src="/?scenario=competitor_cohesity"></iframe></div>
+      <div class="card-body">
+        <div class="card-name">Tyrell Corp</div>
+        <div class="card-meta">Biotech · 1,800 emp</div>
+        <div class="card-stats"><span><b>180</b> VMs</span><span><b>110</b> TB</span><span><b>2</b> sites</span></div>
+        <div class="card-foot"><span class="card-amt">$310K ARR</span><span class="card-when">no contact 14d</span></div>
+      </div>
+    </div>
+  </div>
+
+</div></body></html>

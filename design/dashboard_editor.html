@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Commvault SE Hub — Architecture Editor</title>
+<style>
+  :root {
+    --bg-1:#0a0815; --bg-2:#150F2A;
+    --card:#1A1430; --card-2:#211A3D; --card-3:#251E45;
+    --line:rgba(255,255,255,0.06); --line-2:rgba(255,255,255,0.10);
+    --text:#F1ECFF; --text-mute:#9990B8; --text-dim:#65607A;
+    --cv:#9F5BD9; --cv-deep:#7030A0; --cv-soft:rgba(159,91,217,0.16);
+    --ok:#5BD99F; --warn:#F0B85B; --err:#E97070;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    background:
+      radial-gradient(ellipse 1200px 600px at 20% -200px, rgba(112,48,160,0.30), transparent 60%),
+      radial-gradient(ellipse 800px 500px at 110% 20%, rgba(60,30,120,0.22), transparent 60%),
+      linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+    color:var(--text);
+    font-family:'Inter','SF Pro Display',-apple-system,sans-serif;
+    overflow:hidden;
+    letter-spacing:-0.005em;
+    display:flex; flex-direction:column;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    height:54px;
+    background:rgba(15,10,30,0.55);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; padding:0 22px; gap:18px;
+    flex-shrink:0;
+  }
+  .crumb { font-size:13px; color:var(--text-mute); }
+  .crumb a { color:var(--text-mute); text-decoration:none; }
+  .crumb a:hover { color:var(--cv); }
+  .crumb .sep { margin:0 8px; color:var(--text-dim); }
+  .crumb b { color:var(--text); font-weight:500; }
+  .tabs { display:flex; background:rgba(255,255,255,0.04); border-radius:9px; padding:3px; margin-left:18px; }
+  .tab {
+    padding:7px 18px; font-size:12.5px; font-weight:500;
+    color:var(--text-mute); border-radius:7px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  .tab.on {
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    color:#fff; box-shadow:0 4px 12px rgba(112,48,160,0.30);
+  }
+  .tab .dot {
+    width:6px; height:6px; border-radius:50%;
+    background:var(--text-dim);
+  }
+  .tab.on .dot { background:#fff; box-shadow:0 0 6px #fff; }
+  .ver-pill {
+    margin-left:14px; font-size:11px; padding:4px 10px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:14px; color:var(--text-mute); cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+  }
+  .ver-pill::after { content:"▾"; color:var(--text-dim); margin-left:4px; }
+  .ver-pill:hover { color:var(--text); border-color:var(--line-2); }
+  .top-actions { margin-left:auto; display:flex; gap:8px; }
+  .btn {
+    padding:7px 14px; font-size:12px; font-weight:500;
+    border-radius:7px; cursor:pointer;
+    border:1px solid var(--line-2);
+    background:rgba(255,255,255,0.03); color:var(--text-mute);
+  }
+  .btn:hover { color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .btn.primary {
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    color:#fff; border-color:transparent;
+    box-shadow:0 4px 12px rgba(112,48,160,0.30);
+  }
+  .btn.primary:hover { filter:brightness(1.1); }
+  .btn.ghost { background:transparent; }
+
+  /* ── Three-pane workspace ── */
+  .work { flex:1; display:grid; grid-template-columns:260px 1fr 360px; min-height:0; }
+
+  /* ── LEFT RAIL: scenario tree ── */
+  .tree {
+    background:rgba(15,10,30,0.45);
+    backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column;
+    padding:18px 0;
+    overflow:hidden;
+  }
+  .tree-h {
+    padding:0 18px 12px;
+    font-size:11px; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:1px; font-weight:600;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .tree-h .count {
+    font-size:10px; padding:2px 7px; background:var(--cv-soft); color:var(--cv);
+    border-radius:4px; font-weight:600;
+  }
+  .tree-list { flex:1; overflow-y:auto; padding:0 8px; }
+  .tree-list::-webkit-scrollbar { width:4px; }
+  .tree-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:2px; }
+  .tree-grp { margin-bottom:6px; }
+  .tree-grp-h {
+    display:flex; align-items:center; gap:6px;
+    padding:6px 10px; font-size:11px; color:var(--text-mute);
+    cursor:pointer; border-radius:6px;
+    text-transform:uppercase; letter-spacing:0.5px; font-weight:600;
+  }
+  .tree-grp-h:hover { background:rgba(255,255,255,0.04); }
+  .tree-grp-h .chev { color:var(--text-dim); font-size:9px; }
+  .tree-grp-h .pill {
+    margin-left:auto; font-size:9px; padding:1px 6px;
+    background:rgba(255,255,255,0.05); border-radius:4px; color:var(--text-dim);
+  }
+  .tree-item {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 10px 7px 26px;
+    font-size:12.5px; color:var(--text-mute);
+    cursor:pointer; border-radius:6px;
+  }
+  .tree-item:hover { background:rgba(255,255,255,0.04); color:var(--text); }
+  .tree-item.on {
+    background:linear-gradient(90deg, rgba(159,91,217,0.18), rgba(159,91,217,0.04));
+    color:var(--text); box-shadow:inset 0 0 0 1px rgba(159,91,217,0.30);
+  }
+  .tree-item .ic { width:14px; text-align:center; color:var(--cv); font-size:11px; }
+  .tree-item .nm { flex:1; }
+  .tree-item .badge {
+    font-size:9px; padding:1px 6px; border-radius:4px; font-weight:600;
+    background:rgba(159,91,217,0.20); color:var(--cv);
+  }
+  .tree-quick {
+    padding:14px 16px 0; border-top:1px solid var(--line);
+    display:grid; grid-template-columns:1fr 1fr; gap:6px;
+  }
+  .quick-btn {
+    padding:7px 8px; font-size:11px; font-weight:500;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--line);
+    border-radius:6px; color:var(--text-mute); cursor:pointer;
+    text-align:center;
+  }
+  .quick-btn:hover { color:var(--cv); border-color:rgba(159,91,217,0.40); }
+
+  /* ── CENTER CANVAS ── */
+  .canvas { display:flex; flex-direction:column; min-height:0; position:relative; }
+  .canvas-toolbar {
+    height:42px; background:rgba(15,10,30,0.40);
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; padding:0 16px; gap:12px;
+    flex-shrink:0;
+  }
+  .canvas-tools { display:flex; gap:4px; }
+  .tool-btn {
+    width:28px; height:28px; border-radius:6px;
+    background:transparent; border:none; color:var(--text-mute);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+  }
+  .tool-btn:hover { background:rgba(255,255,255,0.06); color:var(--text); }
+  .tool-btn.on { background:var(--cv-soft); color:var(--cv); }
+  .tool-divider { width:1px; background:var(--line); margin:0 4px; }
+  .zoom-readout {
+    margin-left:auto;
+    font-size:11px; color:var(--text-dim);
+    font-family:ui-monospace,monospace;
+  }
+  .canvas-status {
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; color:var(--text-mute);
+  }
+  .canvas-status .dot {
+    width:6px; height:6px; border-radius:50%; background:var(--ok);
+    box-shadow:0 0 6px var(--ok);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .canvas-frame {
+    flex:1; background:#000; position:relative; min-height:0;
+  }
+  .canvas-frame iframe { width:100%; height:100%; border:none; }
+  .canvas-overlay {
+    position:absolute; bottom:14px; left:14px;
+    background:rgba(15,10,30,0.85);
+    backdrop-filter:blur(8px);
+    border:1px solid var(--line-2); border-radius:8px;
+    padding:10px 14px;
+    font-size:11px; color:var(--text-mute);
+    max-width:340px;
+  }
+  .canvas-overlay .lbl {
+    font-size:9px; color:var(--cv); font-weight:700;
+    letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;
+  }
+
+  /* ── RIGHT: AI parser ── */
+  .ai {
+    background:rgba(15,10,30,0.55);
+    backdrop-filter:blur(14px);
+    border-left:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0;
+  }
+  .ai-h {
+    padding:14px 18px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px;
+    flex-shrink:0;
+  }
+  .ai-h .ai-ic {
+    width:28px; height:28px; border-radius:7px;
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; color:#fff;
+  }
+  .ai-h .nm { font-size:13px; font-weight:600; }
+  .ai-h .sub { font-size:10px; color:var(--text-dim); margin-top:1px; }
+
+  .ai-quick {
+    padding:10px 14px 0;
+    display:flex; flex-wrap:wrap; gap:5px;
+    flex-shrink:0;
+  }
+  .qa-chip {
+    font-size:11px; padding:5px 10px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:14px; color:var(--text-mute); cursor:pointer;
+  }
+  .qa-chip:hover { color:var(--cv); border-color:rgba(159,91,217,0.40); background:rgba(159,91,217,0.06); }
+
+  .ai-stream {
+    flex:1; overflow-y:auto; padding:14px 16px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .ai-stream::-webkit-scrollbar { width:5px; }
+  .ai-stream::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:3px; }
+  .msg { display:flex; gap:9px; }
+  .msg-av { width:24px; height:24px; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; }
+  .msg.user .msg-av { background:rgba(255,255,255,0.06); color:var(--text-mute); }
+  .msg.ai .msg-av { background:linear-gradient(135deg, #9F5BD9, #7030A0); color:#fff; }
+  .msg-body { flex:1; min-width:0; }
+  .msg-text { font-size:12.5px; color:var(--text); line-height:1.55; }
+  .msg-text p { margin-bottom:6px; }
+  .msg-text strong { color:var(--cv); }
+  .msg-when { font-size:10px; color:var(--text-dim); margin-top:4px; }
+
+  .change-card {
+    margin-top:8px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .change-h {
+    padding:8px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:11px;
+  }
+  .change-h .lbl { color:var(--cv); font-weight:600; }
+  .change-h .stamp { color:var(--text-dim); font-size:10px; }
+  .change-list { padding:8px 12px; font-size:11.5px; line-height:1.6; }
+  .change-list .row { display:flex; gap:8px; align-items:flex-start; }
+  .change-list .op { font-family:ui-monospace,monospace; font-size:10px; padding:0 5px; border-radius:3px; flex-shrink:0; margin-top:1px; }
+  .change-list .op.add { background:rgba(91,217,159,0.14); color:var(--ok); }
+  .change-list .op.mod { background:rgba(240,184,91,0.14); color:var(--warn); }
+  .change-list .op.del { background:rgba(233,112,112,0.14); color:var(--err); }
+  .change-list .desc { color:var(--text-mute); }
+  .change-actions {
+    display:flex; gap:6px; padding:8px 12px;
+    border-top:1px solid var(--line);
+    background:rgba(0,0,0,0.20);
+  }
+  .change-actions .btn { flex:1; font-size:11px; padding:6px 10px; }
+
+  .composer {
+    border-top:1px solid var(--line);
+    padding:12px 14px;
+    flex-shrink:0;
+  }
+  .composer-input {
+    width:100%;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:10px 12px;
+    color:var(--text); font-family:inherit; font-size:12.5px;
+    resize:none; min-height:44px; max-height:120px;
+  }
+  .composer-input:focus { outline:none; border-color:var(--cv); }
+  .composer-row {
+    display:flex; align-items:center; gap:6px; margin-top:8px;
+  }
+  .send-btn {
+    margin-left:auto;
+    padding:7px 16px;
+    background:linear-gradient(135deg, #9F5BD9, #7030A0);
+    border:none; border-radius:7px;
+    color:#fff; font-size:12px; font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(112,48,160,0.25);
+  }
+  .send-btn:hover { filter:brightness(1.1); }
+  .composer-hint {
+    font-size:10px; color:var(--text-dim);
+  }
+  .composer-hint b { color:var(--text-mute); }
+
+  /* ── Bottom JSON drawer (collapsed by default) ── */
+  .json-bar {
+    height:30px; background:rgba(15,10,30,0.55);
+    border-top:1px solid var(--line);
+    display:flex; align-items:center; padding:0 18px;
+    font-size:11px; color:var(--text-dim);
+    font-family:ui-monospace,monospace;
+    cursor:pointer; user-select:none;
+    flex-shrink:0;
+  }
+  .json-bar:hover { color:var(--text-mute); }
+  .json-bar .toggle { margin-right:8px; color:var(--cv); }
+  .json-bar .right { margin-left:auto; }
+</style></head><body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="crumb">
+    <a>← Customers</a><span class="sep">/</span>
+    <a>Starlight Healthcare</a><span class="sep">/</span>
+    <b>Architecture Editor</b>
+  </div>
+  <div class="tabs">
+    <div class="tab"><span class="dot"></span>Current State</div>
+    <div class="tab on"><span class="dot"></span>Future State</div>
+  </div>
+  <div class="ver-pill">v3 · 2026-04-25</div>
+  <div class="top-actions">
+    <button class="btn ghost">Compare ↔</button>
+    <button class="btn">Export PPTX</button>
+    <button class="btn primary">Save</button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="work">
+
+  <!-- LEFT RAIL: scenario tree -->
+  <aside class="tree">
+    <div class="tree-h">
+      <span>Scenario Tree</span>
+      <span class="count">7 nodes</span>
+    </div>
+    <div class="tree-list">
+      <div class="tree-grp">
+        <div class="tree-grp-h">
+          <span class="chev">▾</span><span>Sites</span>
+          <span class="pill">3</span>
+        </div>
+        <div class="tree-item on">
+          <span class="ic">▣</span><span class="nm">Primary DC</span>
+          <span class="badge">CV</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">▣</span><span class="nm">DR Site</span>
+          <span class="badge">CV</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">☁</span><span class="nm">AWS Production</span>
+          <span class="badge">SaaS</span>
+        </div>
+      </div>
+      <div class="tree-grp">
+        <div class="tree-grp-h">
+          <span class="chev">▾</span><span>Connections</span>
+          <span class="pill">1</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">→</span><span class="nm">primary → dr</span>
+          <span class="badge">repl</span>
+        </div>
+      </div>
+      <div class="tree-grp">
+        <div class="tree-grp-h">
+          <span class="chev">▾</span><span>AGPs &amp; Destinations</span>
+          <span class="pill">3</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">⛅</span><span class="nm">AWS AGP — Cool</span>
+          <span class="badge">200 TB</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">⛅</span><span class="nm">Cleanroom Tenant</span>
+          <span class="badge">50 TB</span>
+        </div>
+        <div class="tree-item">
+          <span class="ic">⛅</span><span class="nm">S3 (native)</span>
+          <span class="badge">80 TB</span>
+        </div>
+      </div>
+    </div>
+    <div class="tree-quick">
+      <button class="quick-btn">+ Site</button>
+      <button class="quick-btn">+ AGP</button>
+      <button class="quick-btn">+ Connect</button>
+      <button class="quick-btn">+ Cloud</button>
+    </div>
+  </aside>
+
+  <!-- CENTER CANVAS -->
+  <section class="canvas">
+    <div class="canvas-toolbar">
+      <div class="canvas-tools">
+        <button class="tool-btn on" title="Select">↖</button>
+        <button class="tool-btn" title="Pan">✋</button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" title="Zoom in">+</button>
+        <button class="tool-btn" title="Zoom out">−</button>
+        <button class="tool-btn" title="Fit">⛶</button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" title="Undo">↶</button>
+        <button class="tool-btn" title="Redo">↷</button>
+      </div>
+      <div class="zoom-readout">100% · fit</div>
+      <div class="canvas-status">
+        <div class="dot"></div>
+        <span>Auto-saved 12s ago</span>
+      </div>
+    </div>
+    <div class="canvas-frame">
+      <iframe src="/?scenario=competitor_commvault"></iframe>
+      <div class="canvas-overlay">
+        <div class="lbl">Selected · Primary DC</div>
+        <div>HSX-3 (3 nodes · 200 TB) · Commvault SaaS · 4 workloads · 280 VMs · 180 TB protected</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: AI parser -->
+  <aside class="ai">
+    <div class="ai-h">
+      <div class="ai-ic">⚡</div>
+      <div>
+        <div class="nm">AI Parser</div>
+        <div class="sub">Editing · Future State · v3</div>
+      </div>
+    </div>
+
+    <div class="ai-quick">
+      <span class="qa-chip">+ Site</span>
+      <span class="qa-chip">+ AGP</span>
+      <span class="qa-chip">+ Cloud Site</span>
+      <span class="qa-chip">Change vendor</span>
+      <span class="qa-chip">+ Connection</span>
+      <span class="qa-chip">Add Cleanroom</span>
+      <span class="qa-chip">Add destinations</span>
+      <span class="qa-chip">SaaS ↔ Software</span>
+    </div>
+
+    <div class="ai-stream">
+
+      <div class="msg user">
+        <div class="msg-av">MH</div>
+        <div class="msg-body">
+          <div class="msg-text"><p>Add a 3rd site — Branch Office, Veeam, replicating to the DR site.</p></div>
+          <div class="msg-when">2 min ago</div>
+        </div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-av">⚡</div>
+        <div class="msg-body">
+          <div class="msg-text">
+            <p>Got it. I'll add a <strong>Branch Office</strong> site running Veeam Backup &amp; Replication — but I need one quick clarification before I commit:</p>
+            <p>Veeam needs a backup target (it can't write to nothing). Should it use:</p>
+          </div>
+          <div class="change-card">
+            <div class="change-h"><span class="lbl">PROPOSED CHANGE</span><span class="stamp">v3 → v4</span></div>
+            <div class="change-list">
+              <div class="row"><span class="op add">ADD</span><span class="desc"><b>Branch Office</b> · Veeam · 80 VMs · 40 TB · 1 Backup Proxy</span></div>
+              <div class="row"><span class="op add">ADD</span><span class="desc">Connection: <b>branch → dr</b> (replication)</span></div>
+              <div class="row"><span class="op mod">?</span><span class="desc">Backup target needs choice: <b>Pure</b> · <b>Data Domain</b> · <b>direct-to-AGP</b></span></div>
+            </div>
+            <div class="change-actions">
+              <button class="btn">Pure</button>
+              <button class="btn">DD</button>
+              <button class="btn primary">Direct-to-AGP</button>
+            </div>
+          </div>
+          <div class="msg-when">just now</div>
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-av">MH</div>
+        <div class="msg-body">
+          <div class="msg-text"><p>Direct-to-AGP. They have no on-prem backup storage there.</p></div>
+          <div class="msg-when">1 min ago</div>
+        </div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-av">⚡</div>
+        <div class="msg-body">
+          <div class="msg-text"><p>Done. <strong>Branch Office</strong> added with Veeam + 1 Proxy + direct-to-AGP. Replication line drawn from branch to DR. Diagram updated to v4 — preview on the canvas.</p></div>
+          <div class="change-card">
+            <div class="change-h"><span class="lbl">APPLIED · v4</span><span class="stamp">just now</span></div>
+            <div class="change-list">
+              <div class="row"><span class="op add">+SITE</span><span class="desc">Branch Office · Veeam · backup_target=none · 1 Proxy · 80 VMs · 40 TB</span></div>
+              <div class="row"><span class="op add">+CONN</span><span class="desc">branch → dr · DD-Boost replication</span></div>
+              <div class="row"><span class="op mod">~LAYOUT</span><span class="desc">Canvas grew to 18.2" — auto-fit on PPTX export</span></div>
+            </div>
+            <div class="change-actions">
+              <button class="btn">Revert</button>
+              <button class="btn">Open Site Properties</button>
+            </div>
+          </div>
+          <div class="msg-when">just now</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="composer">
+      <textarea class="composer-input" placeholder="Describe the change… e.g. 'replace Pure with NetApp', 'add Cleanroom 100 TB', 'move AGP to Azure Cool'"></textarea>
+      <div class="composer-row">
+        <div class="composer-hint"><b>⏎</b> send · <b>Shift+⏎</b> newline</div>
+        <button class="send-btn">Send</button>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- BOTTOM JSON DRAWER (collapsed) -->
+<div class="json-bar">
+  <span class="toggle">▸</span>
+  <span>scenario.json — view raw</span>
+  <span class="right">7 nodes · 1 connection · 3 destinations · 1.4 KB</span>
+</div>
+
+</body></html>

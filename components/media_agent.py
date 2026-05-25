@@ -29,11 +29,15 @@ class MediaAgent(Component):
     SERVER_VISIBLE_BOTTOM = 45.46 / 60
 
     def __init__(self, count=1, badge='MA', label_singular='Media Agent',
-                 label_plural='Media Agents'):
+                 label_plural='Media Agents', badge_fill=None):
         self.count = max(1, int(count))
         self.badge = badge
         self.label_singular = label_singular
         self.label_plural = label_plural
+        # Vendor-specific badge color so per-vendor data-mover circles
+        # match the vendor's brand (Veeam green, Dell blue, etc.). Falls
+        # back to Commvault purple to preserve existing scenarios.
+        self.badge_fill = badge_fill or COLORS['purple_primary']
 
     def _icons_width(self):
         return (self.count * self.SERVER_SIZE
@@ -68,7 +72,7 @@ class MediaAgent(Component):
             bx = corner_x - badge_size * 0.3
             by = corner_y - badge_size * 0.3
             shapes.append(oval(bx, by, badge_size, badge_size,
-                               fill=COLORS['purple_primary'],
+                               fill=self.badge_fill,
                                stroke=COLORS['text_primary'], sw=0.5,
                                text_content=self.badge,
                                fs=7, text_color=COLORS['text_primary']))

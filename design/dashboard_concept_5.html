@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>SE Hub — Concept 5: AI-First Conversational</title>
+<style>
+  :root {
+    --bg:#0a0a10; --bg-card:#12151d; --bg-card-2:#161b27; --line:#1e2435; --line-2:#263045;
+    --text:#f1f5f9; --text-mute:#94a3b8; --text-dim:#64748b;
+    --cv:#7030A0; --cv2:#834895; --cv-soft:#3a1a55; --cv-light:#C1A3C9;
+    --ok:#22c55e; --warn:#fbbf24; --err:#f87171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; display:flex; flex-direction:column; overflow:hidden; }
+
+  .header { height:54px; background:var(--bg-card); border-bottom:1px solid var(--line);
+            display:flex; align-items:center; padding:0 22px; gap:18px; flex-shrink:0; }
+  .logo-mark { width:32px; height:32px; background:linear-gradient(135deg,var(--cv) 0%,var(--cv2) 100%); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .logo-text { font-size:14px; font-weight:600; }
+  .logo-sub { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; }
+  .nav { display:flex; gap:4px; margin-left:24px; }
+  .nav a { font-size:12px; color:var(--text-mute); padding:6px 12px; border-radius:5px; cursor:pointer; }
+  .nav a.active { color:var(--cv-light); background:var(--cv-soft); }
+  .who { margin-left:auto; font-size:12px; color:var(--text-mute); }
+  .avatar { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--cv),var(--cv2)); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; margin-left:8px; }
+
+  /* Main 2-pane: chat + sidebar */
+  .main { flex:1; display:grid; grid-template-columns:1fr 320px; min-height:0; }
+
+  /* Chat column */
+  .chat-col { display:flex; flex-direction:column; min-height:0; }
+  .chat-h { padding:16px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .ctx-badge { font-size:11px; padding:4px 10px; background:var(--cv-soft); color:var(--cv-light); border-radius:12px; font-weight:600; }
+  .ctx-badge::before { content:"⚡ "; }
+  .clear-btn { font-size:11px; color:var(--text-dim); background:transparent; border:1px solid var(--line); padding:4px 10px; border-radius:5px; cursor:pointer; }
+  .clear-btn:hover { color:var(--text); border-color:var(--line-2); }
+
+  .chat-stream { flex:1; overflow-y:auto; padding:24px 28px 24px; max-width:1080px; margin:0 auto; width:100%; }
+  .msg { display:flex; gap:14px; margin-bottom:24px; }
+  .msg-avatar { width:32px; height:32px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+  .msg.user .msg-avatar { background:#2a2a3a; color:var(--text-mute); }
+  .msg.ai .msg-avatar { background:linear-gradient(135deg,var(--cv),var(--cv2)); color:#fff; }
+  .msg-body { flex:1; min-width:0; }
+  .msg-author { font-size:12px; font-weight:600; color:var(--text); }
+  .msg-author .role { font-size:10px; color:var(--text-dim); margin-left:6px; font-weight:400; text-transform:uppercase; letter-spacing:0.5px; }
+  .msg-time { font-size:10px; color:var(--text-dim); margin-left:6px; }
+  .msg-text { font-size:14px; color:var(--text); line-height:1.6; margin-top:6px; }
+  .msg-text p { margin-bottom:10px; }
+  .msg-text strong { color:var(--cv-light); }
+  .msg-text ul { margin-left:18px; margin-bottom:10px; }
+  .msg-text li { margin-bottom:4px; color:var(--text-mute); }
+
+  /* AI rendered artifacts inline in chat */
+  .artifact { margin-top:14px; background:var(--bg-card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .artifact-h { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  .artifact-h .ttl { font-size:12px; font-weight:600; }
+  .artifact-h .ttl .tag { font-size:9px; padding:1px 6px; border-radius:3px; background:var(--cv-soft); color:var(--cv-light); margin-left:8px; font-weight:700; letter-spacing:0.4px; }
+  .artifact-h .actions { display:flex; gap:6px; }
+  .artifact-h .actions button { font-size:11px; color:var(--text-mute); background:transparent; border:1px solid var(--line); padding:3px 9px; border-radius:4px; cursor:pointer; }
+  .artifact-h .actions button:hover { color:var(--text); }
+  .artifact-frame { height:280px; background:#000; }
+  .artifact-frame iframe { width:100%; height:100%; border:none; }
+  .artifact.compare .artifact-frame { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); }
+  .artifact-stat-row { padding:10px 14px; display:flex; gap:14px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .artifact-stat { font-size:11px; color:var(--text-mute); }
+  .artifact-stat b { color:var(--text); font-weight:600; }
+
+  .followups { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .followup { font-size:12px; padding:7px 12px; background:var(--bg-card); border:1px solid var(--line); border-radius:14px; color:var(--text-mute); cursor:pointer; }
+  .followup:hover { color:var(--cv-light); border-color:var(--cv); }
+
+  /* Composer */
+  .composer { padding:16px 28px 22px; border-top:1px solid var(--line); background:var(--bg-card); flex-shrink:0; }
+  .composer-inner { max-width:1080px; margin:0 auto; }
+  .composer-row { display:flex; gap:8px; }
+  .composer-input { flex:1; background:var(--bg-card-2); border:1px solid var(--line); border-radius:10px; padding:12px 16px; color:var(--text); font-family:inherit; font-size:13px; resize:none; min-height:46px; max-height:140px; }
+  .composer-input:focus { border-color:var(--cv); outline:none; }
+  .composer-btns { display:flex; flex-direction:column; gap:6px; }
+  .send-btn { background:var(--cv); color:#fff; border:none; padding:0 16px; border-radius:8px; font-weight:600; cursor:pointer; height:46px; min-width:80px; font-size:13px; }
+  .send-btn:hover { background:var(--cv2); }
+  .attach-btn { background:transparent; border:1px solid var(--line); border-radius:8px; padding:0 14px; color:var(--text-mute); cursor:pointer; height:46px; font-size:13px; }
+  .attach-btn:hover { color:var(--text); border-color:var(--line-2); }
+  .composer-hints { font-size:11px; color:var(--text-dim); margin-top:8px; display:flex; gap:14px; }
+  .composer-hints b { color:var(--text-mute); }
+
+  /* Sidebar */
+  .side { background:var(--bg-card); border-left:1px solid var(--line); overflow-y:auto; padding:20px 18px; }
+  .side h3 { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:10px; }
+  .side h3:not(:first-child) { margin-top:24px; }
+  .ctx-card { background:var(--bg-card-2); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px; cursor:pointer; }
+  .ctx-card:hover { border-color:var(--cv); }
+  .ctx-card .nm { font-size:13px; font-weight:600; }
+  .ctx-card .mt { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .ctx-card .row { display:flex; gap:10px; margin-top:6px; font-size:11px; color:var(--text-mute); }
+  .ctx-card.active { border-color:var(--cv); background:rgba(112,48,160,0.08); }
+  .recent-q { padding:8px 0; font-size:12px; color:var(--text-mute); border-bottom:1px solid var(--line); cursor:pointer; }
+  .recent-q:last-child { border:none; }
+  .recent-q:hover { color:var(--cv-light); }
+  .recent-q .when { font-size:10px; color:var(--text-dim); margin-top:2px; }
+</style></head><body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="logo-mark">CV</div>
+    <div><div class="logo-text">SE Hub Copilot</div><div class="logo-sub">Conversational Workspace</div></div>
+  </div>
+  <div class="nav"><a>Customers</a><a>Pipeline</a><a class="active">Copilot</a><a>Library</a><a>Reports</a></div>
+  <div class="who">Marek H.<div class="avatar">MH</div></div>
+</div>
+
+<div class="main">
+
+  <div class="chat-col">
+    <div class="chat-h">
+      <div class="ctx-badge">Acme Corp · Veeam → Commvault POC</div>
+      <button class="clear-btn">Clear context</button>
+    </div>
+
+    <div class="chat-stream">
+
+      <div class="msg user">
+        <div class="msg-avatar">MH</div>
+        <div class="msg-body">
+          <div class="msg-author">Marek<span class="role">SE</span><span class="msg-time">10:14am</span></div>
+          <div class="msg-text"><p>Show me Acme Corp's current state and what we've extracted so far.</p></div>
+        </div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-avatar">CV</div>
+        <div class="msg-body">
+          <div class="msg-author">Copilot<span class="role">AI</span><span class="msg-time">10:14am</span></div>
+          <div class="msg-text">
+            <p>Here's <strong>Acme Corp</strong> — Manufacturing, 3,500 employees. Currently running <strong>Veeam B&amp;R 12.1</strong> with two Data Domain DD9300 appliances across Primary DC + DR. 282 production VMs, 186 TB protected, DD-Boost replication on 10GbE.</p>
+            <div class="artifact">
+              <div class="artifact-h">
+                <span class="ttl">Acme Corp · Current State<span class="tag">RENDERED</span></span>
+                <div class="actions"><button>Edit</button><button>Export PPTX</button></div>
+              </div>
+              <div class="artifact-frame"><iframe src="/?scenario=competitor_veeam"></iframe></div>
+              <div class="artifact-stat-row">
+                <span class="artifact-stat"><b>282</b> VMs</span>
+                <span class="artifact-stat"><b>186 TB</b> protected</span>
+                <span class="artifact-stat"><b>2</b> Data Domains</span>
+                <span class="artifact-stat"><b>3</b> proxies</span>
+                <span class="artifact-stat"><b>DD-Boost</b> replication</span>
+              </div>
+            </div>
+            <p style="margin-top:14px">Across the 4 transcripts I've processed, the top extracted facts are:</p>
+            <ul>
+              <li><strong>Renewal date</strong>: Veeam contract ends 2026-07-31 (T1)</li>
+              <li><strong>Pain points</strong>: slow restores + Data Domain hardware EOL (T1, T3)</li>
+              <li><strong>Compliance</strong>: SOX + ISO 27001, annual audit Q3 (T2)</li>
+              <li><strong>Cloud strategy</strong>: "AWS-first" 2-year migration (T3)</li>
+              <li><strong>Budget</strong>: $850K approved replace, FY26 capex (T4)</li>
+              <li><strong>Net-new</strong>: piloting EKS for new microservices (T4)</li>
+            </ul>
+          </div>
+          <div class="followups">
+            <div class="followup">Draft a future state →</div>
+            <div class="followup">Compare Veeam vs Commvault TCO</div>
+            <div class="followup">What's missing from the diagram?</div>
+            <div class="followup">Build a sales narrative for the CIO</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-avatar">MH</div>
+        <div class="msg-body">
+          <div class="msg-author">Marek<span class="role">SE</span><span class="msg-time">10:18am</span></div>
+          <div class="msg-text"><p>Draft a future state. Use Commvault SaaS, on-prem HSX for fast restore, and AWS AGP since they're cloud-first. Include Cleanroom for the SOX/ISO compliance ask.</p></div>
+        </div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-avatar">CV</div>
+        <div class="msg-body">
+          <div class="msg-author">Copilot<span class="role">AI</span><span class="msg-time">10:18am</span></div>
+          <div class="msg-text">
+            <p>Drafted <strong>Future State v3</strong>. Commvault SaaS handles control plane (no in-site CommServe to manage), one HSX-3 cluster on-prem at Primary for fast restores, AWS Cool-tier AGP at 200 TB / 365-day retention for long-term + air-gapped, plus a 50 TB Cleanroom tenant for the audit-driven recovery rehearsals.</p>
+            <div class="artifact compare">
+              <div class="artifact-h">
+                <span class="ttl">Acme Corp · Current vs Future<span class="tag">SIDE-BY-SIDE</span></span>
+                <div class="actions"><button>Edit Future</button><button>Generate Slides</button></div>
+              </div>
+              <div class="artifact-frame">
+                <iframe src="/?scenario=competitor_veeam"></iframe>
+                <iframe src="/?scenario=competitor_commvault"></iframe>
+              </div>
+              <div class="artifact-stat-row">
+                <span class="artifact-stat">Cuts <b>4</b> on-prem servers (no in-site CS)</span>
+                <span class="artifact-stat">Adds <b>Cleanroom</b> for audits</span>
+                <span class="artifact-stat">Storage: <b>$0</b> hw refresh (DD aging out)</span>
+                <span class="artifact-stat">Restore SLA: <b>15 min</b> for tier-1 VMs</span>
+              </div>
+            </div>
+            <p style="margin-top:14px"><strong>I'd flag two open items:</strong></p>
+            <ul>
+              <li>EKS workload (mentioned in T4) isn't in v3 yet — should I add it as a workload chip on the future state?</li>
+              <li>Their cloud-first strategy implies workloads will eventually move to AWS too. Do you want a phased roadmap (year 1: replace Veeam → year 2: lift VMs to EC2 with Commvault Cloud Rewind)?</li>
+            </ul>
+          </div>
+          <div class="followups">
+            <div class="followup">Yes, add EKS</div>
+            <div class="followup">Build the 2-year roadmap</div>
+            <div class="followup">Draft talk track for CIO meeting</div>
+            <div class="followup">Compare TCO Y1 vs Y3</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <div class="composer-row">
+          <textarea class="composer-input" placeholder="Ask anything · paste a transcript · request a future state…"></textarea>
+          <div class="composer-btns">
+            <button class="send-btn">Send ↵</button>
+            <button class="attach-btn">📎</button>
+          </div>
+        </div>
+        <div class="composer-hints">
+          <span><b>⌘+K</b> for shortcuts</span>
+          <span><b>/diagram</b> generate</span>
+          <span><b>/transcript</b> upload</span>
+          <span><b>/compare</b> side-by-side</span>
+          <span><b>@customer</b> switch context</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar: customer context + recent questions -->
+  <div class="side">
+    <h3>Active Context</h3>
+    <div class="ctx-card active">
+      <div class="nm">Acme Corp</div>
+      <div class="mt">Manufacturing · 3,500 emp · POC day 12</div>
+      <div class="row"><span><b>282</b> VMs</span><span><b>186 TB</b></span><span><b>$850K</b></span></div>
+    </div>
+
+    <h3>Switch Customer</h3>
+    <div class="ctx-card">
+      <div class="nm">Globex Industries</div>
+      <div class="mt">Manufacturing · Rubrik replace</div>
+      <div class="row"><span><b>500</b> VMs</span><span><b>400 TB</b></span></div>
+    </div>
+    <div class="ctx-card">
+      <div class="nm">Wayne Enterprises</div>
+      <div class="mt">Defense · Avamar EOL</div>
+      <div class="row"><span><b>320</b> VMs</span><span><b>200 TB</b></span></div>
+    </div>
+    <div class="ctx-card">
+      <div class="nm">Stark Industries</div>
+      <div class="mt">Aerospace · NetWorker → SaaS</div>
+      <div class="row"><span><b>1247</b> VMs</span><span><b>820 TB</b></span></div>
+    </div>
+
+    <h3>Recent Questions</h3>
+    <div class="recent-q">"Show me Acme's current state"<div class="when">5 min ago</div></div>
+    <div class="recent-q">"Compare Veeam to Commvault TCO for 200TB"<div class="when">today</div></div>
+    <div class="recent-q">"Draft Wayne Ent future state with Cloud Rewind"<div class="when">yesterday</div></div>
+    <div class="recent-q">"What competitors are in 4 active deals?"<div class="when">2d ago</div></div>
+    <div class="recent-q">"Summarize T3 transcript for Globex"<div class="when">2d ago</div></div>
+  </div>
+
+</div>
+</body></html>

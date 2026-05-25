@@ -59,24 +59,35 @@ class ProtectedDataLayer(Component):
 
     def __init__(self, target_kind='hsx', is_commvault=True,
                  hsx_nodes=3, hsx_tb=150, retention_days=None,
-                 deployment='software'):
+                 deployment='software', show_status=None):
         self.header = HeaderBar('Protected Data Layer', is_commvault)
         self.target = make_target(target_kind, nodes=hsx_nodes,
                                   total_tb=hsx_tb,
                                   deployment=deployment)
-        self.status = ProtectionStatus()
         self.retention_days = retention_days
+        # RULE: the (Immutable / Deduped / Encrypted) status chips only
+        # render on HSX storage layers and on the AGP card. Pure, NetApp,
+        # Data Domain, and hyperconverged appliances suppress them.
+        # An explicit `show_status` kwarg overrides the default — pass
+        # True/False from the scenario to flip on a case-by-case basis.
+        if show_status is None:
+            show_status = (target_kind == 'hsx')
+        self.show_status = bool(show_status)
+        self.status = ProtectionStatus() if self.show_status else None
 
     def preferred_size(self):
         header_w, header_h = self.header.preferred_size()
         target_w, target_h = self.target.preferred_size()
-        status_w, status_h = self.status.preferred_size()
+        status_w, status_h = (self.status.preferred_size()
+                              if self.status else (0, 0))
         w = max(header_w, target_w + self.BOX_PAD * 2, status_w + self.BOX_PAD * 2)
         retention_block = (self.RETENTION_GAP + self.RETENTION_H
                            if self.retention_days else 0)
+        status_block = (self.GAP_AFTER_TARGET + status_h) if self.status else 0
         h = (header_h + self.GAP_AFTER_HEADER
-             + target_h + retention_block + self.GAP_AFTER_TARGET
-             + status_h + self.BOX_PAD)
+             + target_h + retention_block
+             + status_block
+             + self.BOX_PAD)
         return (w, h)
 
     def render(self, x, y, w, h):
@@ -111,10 +122,12 @@ class ProtectedDataLayer(Component):
                                align='center', valign='middle'))
             cy += self.RETENTION_H
 
-        cy += self.GAP_AFTER_TARGET
-
-        # Status chips (centered at preferred width)
-        sw, sh = self.status.preferred_size()
-        sx = inner_x + (inner_w - sw) / 2
-        shapes.extend(self.status.render(sx, cy, sw, sh))
+        # Status chips — only on HSX (and on AGP, which renders its own
+        # status independently). Skip entirely when self.status is None
+        # so no vertical space is reserved.
+        if self.status is not None:
+            cy += self.GAP_AFTER_TARGET
+            sw, sh = self.status.preferred_size()
+            sx = inner_x + (inner_w - sw) / 2
+            shapes.extend(self.status.render(sx, cy, sw, sh))
         return shapes

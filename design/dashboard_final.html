@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Commvault SE Hub — Starlight Healthcare</title>
+<style>
+  :root {
+    --bg-1:#0a0815; --bg-2:#150F2A;
+    --card:#1A1430; --card-2:#211A3D; --card-3:#251E45;
+    --line:rgba(255,255,255,0.06); --line-2:rgba(255,255,255,0.10);
+    --text:#F1ECFF; --text-mute:#9990B8; --text-dim:#65607A;
+    --cv:#9F5BD9; --cv-deep:#7030A0; --cv-soft:rgba(159,91,217,0.16);
+    --ok:#5BD99F; --warn:#F0B85B;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    background:
+      radial-gradient(ellipse 1200px 600px at 20% -200px, rgba(112,48,160,0.30), transparent 60%),
+      radial-gradient(ellipse 800px 500px at 110% 20%, rgba(60,30,120,0.22), transparent 60%),
+      linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+    color:var(--text);
+    font-family:'Inter','SF Pro Display',-apple-system,sans-serif;
+    overflow:hidden;
+    letter-spacing:-0.005em;
+  }
+
+  .app { display:grid; grid-template-columns:240px 1fr; height:100vh; }
+
+  /* ─────────── SIDEBAR ─────────── */
+  .side {
+    background:rgba(15,10,30,0.55);
+    backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column;
+    padding:20px 14px 16px;
+    overflow:hidden;
+  }
+  .brand { display:flex; align-items:center; gap:10px; padding:0 8px 18px; }
+  .brand-mark {
+    width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(135deg, #B677F0 0%, #7030A0 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:700; color:#fff;
+    box-shadow:0 4px 14px rgba(112,48,160,0.45);
+  }
+  .brand-name { font-size:15px; font-weight:600; }
+  .search {
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 12px 8px 32px;
+    font-size:12px; color:var(--text);
+    margin-bottom:14px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239990B8' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='M21 21l-4.35-4.35'/></svg>");
+    background-repeat:no-repeat; background-position:10px center;
+    width:100%;
+  }
+  .search:focus { outline:none; border-color:var(--cv); }
+
+  .cust-list { flex:1; overflow-y:auto; margin:0 -4px; padding:0 4px; }
+  .cust-list::-webkit-scrollbar { width:4px; }
+  .cust-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.06); border-radius:2px; }
+
+  .cust {
+    display:flex; align-items:flex-start; gap:10px;
+    padding:9px 10px; margin-bottom:2px; border-radius:8px;
+    cursor:pointer; transition:.15s;
+  }
+  .cust:hover { background:rgba(255,255,255,0.03); }
+  .cust.on {
+    background:linear-gradient(135deg, rgba(159,91,217,0.20) 0%, rgba(112,48,160,0.10) 100%);
+    box-shadow:inset 0 0 0 1px rgba(159,91,217,0.30);
+  }
+  .cust-dot {
+    width:6px; height:6px; border-radius:50%;
+    margin-top:6px; flex-shrink:0;
+    background:var(--text-dim);
+  }
+  .cust.on .cust-dot { background:var(--cv); box-shadow:0 0 8px var(--cv); }
+  .cust-info { flex:1; min-width:0; }
+  .cust-name { font-size:12.5px; font-weight:600; color:var(--text); }
+  .cust-meta {
+    font-size:10px; color:var(--text-dim);
+    margin-top:2px;
+  }
+  .add-btn {
+    margin-top:10px; padding:9px 12px;
+    background:rgba(159,91,217,0.10);
+    border:1px dashed rgba(159,91,217,0.40);
+    border-radius:8px;
+    color:var(--cv); font-size:12px; font-weight:600;
+    text-align:center; cursor:pointer;
+  }
+  .add-btn:hover { background:rgba(159,91,217,0.18); }
+
+  /* ─────────── MAIN ─────────── */
+  .main { padding:22px 28px 28px; overflow-y:auto; }
+
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+  .topbar-left { }
+  .topbar h1 { font-size:24px; font-weight:600; letter-spacing:-0.02em; }
+  .topbar h1 .star { color:var(--cv); margin-left:6px; font-size:18px; vertical-align:1px; }
+  .topbar .sub { font-size:12px; color:var(--text-mute); margin-top:2px; }
+  .topbar-actions { display:flex; gap:8px; }
+  .btn {
+    padding:8px 16px; font-size:12px; font-weight:600;
+    border-radius:8px; cursor:pointer; border:1px solid var(--line-2);
+    background:rgba(255,255,255,0.03); color:var(--text-mute);
+  }
+  .btn:hover { color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .btn.primary {
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    border-color:transparent; color:#fff;
+    box-shadow:0 6px 18px rgba(112,48,160,0.40);
+  }
+  .btn.primary:hover { filter:brightness(1.1); }
+
+  /* Stat strip */
+  .stats {
+    display:grid; grid-template-columns:repeat(6,1fr); gap:12px;
+    margin-bottom:18px;
+  }
+  .stat {
+    background:linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  .stat::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg, rgba(159,91,217,0.06), transparent 50%);
+    pointer-events:none;
+  }
+  .stat-ic {
+    position:absolute; top:14px; right:14px;
+    width:24px; height:24px; border-radius:7px;
+    background:rgba(159,91,217,0.15);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cv); font-size:13px;
+  }
+  .stat-lbl { font-size:11px; color:var(--text-mute); font-weight:500; }
+  .stat-val { font-size:24px; font-weight:600; margin-top:6px; letter-spacing:-0.02em; }
+  .stat-val .small { font-size:13px; color:var(--text-mute); margin-left:4px; font-weight:500; }
+  .stat-val.text { font-size:17px; }
+
+  /* Section row helpers */
+  .row { display:grid; gap:14px; margin-bottom:18px; }
+  .row.diagrams { grid-template-columns:1fr 1fr; }
+  .row.bottom { grid-template-columns:1fr 1fr 1fr; }
+
+  .panel {
+    background:linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .panel-h {
+    padding:14px 18px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-h h3 {
+    font-size:13px; font-weight:600;
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-h h3 .dot {
+    width:6px; height:6px; border-radius:50%; background:var(--cv);
+  }
+  .panel-h .meta { font-size:11px; color:var(--text-dim); }
+  .panel-h .ver {
+    font-size:10px; padding:3px 8px; border-radius:4px;
+    background:var(--cv-soft); color:var(--cv); font-weight:600;
+    letter-spacing:0.4px;
+  }
+
+  /* Diagram frame */
+  .diag-frame {
+    height:280px; background:#000; position:relative;
+  }
+  .diag-frame iframe { width:100%; height:100%; border:none; background:#000; }
+
+  /* Upload Transcript */
+  .upload-zone {
+    margin:18px;
+    border:1.5px dashed rgba(159,91,217,0.40);
+    border-radius:12px;
+    padding:30px 18px 24px;
+    text-align:center;
+    background:rgba(159,91,217,0.04);
+    cursor:pointer;
+  }
+  .upload-zone:hover { background:rgba(159,91,217,0.08); }
+  .upload-ic {
+    width:46px; height:46px; margin:0 auto 12px;
+    border-radius:12px;
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 16px rgba(112,48,160,0.40);
+    color:#fff; font-size:22px;
+  }
+  .upload-title { font-size:13px; font-weight:600; }
+  .upload-sub { font-size:11px; color:var(--text-mute); margin-top:4px; }
+  .browse {
+    margin-top:14px;
+    padding:8px 18px;
+    background:linear-gradient(135deg, #9F5BD9 0%, #7030A0 100%);
+    border:none; border-radius:7px;
+    color:#fff; font-size:12px; font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(112,48,160,0.30);
+  }
+
+  /* Past transcripts list */
+  .tr-list { padding:6px 18px 14px; }
+  .tr-item {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .tr-item:last-child { border:none; }
+  .tr-ic {
+    width:30px; height:30px; border-radius:7px;
+    background:rgba(159,91,217,0.12);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cv); font-size:13px;
+    flex-shrink:0;
+  }
+  .tr-info { flex:1; min-width:0; }
+  .tr-name { font-size:12.5px; font-weight:500; }
+  .tr-when { font-size:10px; color:var(--text-dim); margin-top:2px; }
+  .tr-act { color:var(--text-dim); font-size:14px; cursor:pointer; }
+  .tr-act:hover { color:var(--cv); }
+
+  /* AI Insights */
+  .ai-grid {
+    padding:14px;
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .ai-tile {
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .ai-lbl { font-size:10px; color:var(--text-mute); font-weight:500; }
+  .ai-val { font-size:18px; font-weight:600; margin-top:4px; letter-spacing:-0.02em; }
+  .ai-val .small { font-size:11px; color:var(--text-mute); font-weight:500; margin-left:3px; }
+  .ai-spark { margin-top:6px; height:24px; }
+  .ai-tile.full { grid-column:1 / -1; }
+  .ai-takeaway {
+    padding:10px 12px;
+    background:linear-gradient(135deg, rgba(159,91,217,0.10) 0%, rgba(159,91,217,0.02) 100%);
+    border:1px solid rgba(159,91,217,0.20);
+    border-radius:10px;
+    font-size:11.5px; color:var(--text-mute); line-height:1.55;
+  }
+  .ai-takeaway b { color:var(--text); }
+  .key-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
+  .key-row:last-child { margin-bottom:0; }
+  .key-bullet { color:var(--cv); flex-shrink:0; }
+
+  svg.spark path { fill:none; stroke:var(--cv); stroke-width:1.5; }
+  svg.spark .fill { fill:url(#sparkGrad); stroke:none; opacity:0.5; }
+</style></head><body>
+
+<div class="app">
+
+  <!-- ───────── SIDEBAR ───────── -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">CV</div>
+      <div class="brand-name">Commvault</div>
+    </div>
+    <input class="search" placeholder="Search customers…" type="text">
+    <div class="cust-list">
+      <div class="cust on">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Starlight Healthcare</div>
+          <div class="cust-meta">1,250 VMs · 320 TB · 6 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Nova Financial</div>
+          <div class="cust-meta">820 VMs · 410 TB · 3 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Pioneer Manufacturing</div>
+          <div class="cust-meta">1,540 VMs · 680 TB · 5 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Summit Education</div>
+          <div class="cust-meta">340 VMs · 90 TB · 2 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Apex Retail Group</div>
+          <div class="cust-meta">2,180 VMs · 1.2 PB · 8 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Bluwave Energy</div>
+          <div class="cust-meta">670 VMs · 240 TB · 4 sites</div>
+        </div>
+      </div>
+      <div class="cust">
+        <div class="cust-dot"></div>
+        <div class="cust-info">
+          <div class="cust-name">Evergreen Logistics</div>
+          <div class="cust-meta">1,090 VMs · 520 TB · 7 sites</div>
+        </div>
+      </div>
+    </div>
+    <div class="add-btn">+ Add Customer</div>
+  </aside>
+
+  <!-- ───────── MAIN ───────── -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Starlight Healthcare<span class="star">✦</span></h1>
+        <div class="sub">Customer Overview</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn">Update Record</button>
+        <button class="btn primary">Export Report</button>
+      </div>
+    </div>
+
+    <!-- STAT STRIP -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-ic">🖥</div>
+        <div class="stat-lbl">VMs</div>
+        <div class="stat-val">1,250</div>
+      </div>
+      <div class="stat">
+        <div class="stat-ic">💾</div>
+        <div class="stat-lbl">Storage</div>
+        <div class="stat-val">320<span class="small">TB</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-ic">⚙</div>
+        <div class="stat-lbl">Workloads</div>
+        <div class="stat-val">28</div>
+      </div>
+      <div class="stat">
+        <div class="stat-ic">📍</div>
+        <div class="stat-lbl">Sites</div>
+        <div class="stat-val">6</div>
+      </div>
+      <div class="stat">
+        <div class="stat-ic">🛡</div>
+        <div class="stat-lbl">Backup Vendor</div>
+        <div class="stat-val text">Commvault</div>
+      </div>
+      <div class="stat">
+        <div class="stat-ic">▦</div>
+        <div class="stat-lbl">Hypervisor</div>
+        <div class="stat-val text">VMware vSphere</div>
+      </div>
+    </div>
+
+    <!-- DIAGRAMS ROW -->
+    <div class="row diagrams">
+      <div class="panel">
+        <div class="panel-h">
+          <h3><span class="dot"></span>Current State</h3>
+          <span class="meta">Last updated 2026-04-09</span>
+        </div>
+        <div class="diag-frame">
+          <iframe src="/?scenario=competitor_veeam"></iframe>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">
+          <h3><span class="dot"></span>Future State</h3>
+          <span class="ver">v3 PROPOSED</span>
+        </div>
+        <div class="diag-frame">
+          <iframe src="/?scenario=competitor_commvault"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="row bottom">
+
+      <!-- Upload Transcript -->
+      <div class="panel">
+        <div class="panel-h"><h3><span class="dot"></span>Upload Transcript</h3></div>
+        <div class="upload-zone">
+          <div class="upload-ic">☁</div>
+          <div class="upload-title">Drag and drop your transcript here</div>
+          <div class="upload-sub">.txt · .vtt · .docx · or paste text</div>
+          <button class="browse">Browse Files</button>
+        </div>
+      </div>
+
+      <!-- Past Transcripts -->
+      <div class="panel">
+        <div class="panel-h">
+          <h3><span class="dot"></span>Past Transcripts</h3>
+          <span class="meta">4 total</span>
+        </div>
+        <div class="tr-list">
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info">
+              <div class="tr-name">QBR_April_2026.vtt</div>
+              <div class="tr-when">2 hours ago · 6 facts extracted</div>
+            </div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info">
+              <div class="tr-name">CIO_Cloud_Strategy.txt</div>
+              <div class="tr-when">2026-04-25 · 8 facts</div>
+            </div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info">
+              <div class="tr-name">Stakeholder_Map.docx</div>
+              <div class="tr-when">2026-04-18 · 11 facts</div>
+            </div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info">
+              <div class="tr-name">Discovery_Call_T1.vtt</div>
+              <div class="tr-when">2026-04-09 · 14 facts</div>
+            </div>
+            <div class="tr-act">↓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI-Extracted Insights -->
+      <div class="panel">
+        <div class="panel-h"><h3><span class="dot"></span>AI-Extracted Insights</h3></div>
+        <svg width="0" height="0" style="position:absolute"><defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#9F5BD9"/>
+            <stop offset="100%" stop-color="#9F5BD9" stop-opacity="0"/>
+          </linearGradient>
+        </defs></svg>
+        <div class="ai-grid">
+          <div class="ai-tile">
+            <div class="ai-lbl">VM Count Trend</div>
+            <div class="ai-val">1,250</div>
+            <svg class="ai-spark" width="100%" height="24" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path class="fill" d="M0,20 L10,18 L20,16 L30,12 L40,14 L50,10 L60,11 L70,7 L80,9 L90,4 L100,2 L100,24 L0,24 Z"/>
+              <path d="M0,20 L10,18 L20,16 L30,12 L40,14 L50,10 L60,11 L70,7 L80,9 L90,4 L100,2"/>
+            </svg>
+          </div>
+          <div class="ai-tile">
+            <div class="ai-lbl">Storage Growth</div>
+            <div class="ai-val">320<span class="small">TB</span></div>
+            <svg class="ai-spark" width="100%" height="24" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path class="fill" d="M0,22 L10,20 L20,18 L30,16 L40,14 L50,11 L60,9 L70,8 L80,5 L90,4 L100,2 L100,24 L0,24 Z"/>
+              <path d="M0,22 L10,20 L20,18 L30,16 L40,14 L50,11 L60,9 L70,8 L80,5 L90,4 L100,2"/>
+            </svg>
+          </div>
+          <div class="ai-tile full">
+            <div class="ai-lbl" style="margin-bottom:8px">Key Takeaways</div>
+            <div class="ai-takeaway">
+              <div class="key-row"><span class="key-bullet">▸</span><span><b>Renewal date:</b> 2026-07-31 — Veeam contract end (T1)</span></div>
+              <div class="key-row"><span class="key-bullet">▸</span><span><b>Pain points:</b> slow restores + Data Domain hardware EOL (T1, T3)</span></div>
+              <div class="key-row"><span class="key-bullet">▸</span><span><b>Compliance:</b> SOX + ISO 27001, audit Q3 (T2)</span></div>
+              <div class="key-row"><span class="key-bullet">▸</span><span><b>Strategy:</b> AWS-first 2-yr cloud migration (T3)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+</body></html>

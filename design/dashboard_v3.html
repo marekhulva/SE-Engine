@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Commvault SE Hub — Starlight Healthcare</title>
+<style>
+  :root {
+    --bg-deep:   #07060F;
+    --bg-mid:    #0E0B1E;
+    --bg-rise:   #15102B;
+    --card-fill: rgba(255,255,255,0.022);
+    --card-line: rgba(255,255,255,0.05);
+    --card-line-2: rgba(255,255,255,0.085);
+    --text:      #ECE7FA;
+    --text-mute: #A09BB8;
+    --text-dim:  #5C5870;
+    --text-fade: #46435A;
+    --cv:        #A37DE0;
+    --cv-hi:     #BE9CF0;
+    --cv-deep:   #6E3FB0;
+    --cv-soft:   rgba(163,125,224,0.12);
+    --ok:        #5BD99F;
+    --warn:      #F0B85B;
+    --shadow:    0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.40);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    background:
+      radial-gradient(circle 700px at 12% 8%, rgba(110,63,176,0.22), transparent 50%),
+      radial-gradient(circle 600px at 95% 20%, rgba(60,30,120,0.16), transparent 55%),
+      radial-gradient(circle 800px at 70% 100%, rgba(110,63,176,0.10), transparent 50%),
+      linear-gradient(180deg, var(--bg-rise) 0%, var(--bg-mid) 40%, var(--bg-deep) 100%);
+    color:var(--text);
+    font-family:'Inter','SF Pro Display',-apple-system,sans-serif;
+    overflow:hidden;
+    font-feature-settings:"cv11";
+    letter-spacing:-0.005em;
+  }
+
+  .app { display:grid; grid-template-columns:48px 232px 1fr 340px; height:100vh; gap:0; }
+
+  /* ─── ICON RAIL ─── */
+  .iconnav {
+    background:rgba(7,5,15,0.6); backdrop-filter:blur(20px);
+    border-right:1px solid var(--card-line);
+    display:flex; flex-direction:column; align-items:center;
+    padding:18px 0; gap:4px;
+  }
+  .ic { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+        color:var(--text-fade); font-size:14px; cursor:pointer; transition:.15s; position:relative; }
+  .ic:hover { color:var(--text-mute); background:rgba(255,255,255,0.03); }
+  .ic.on { color:var(--cv); }
+  .ic.on::before {
+    content:''; position:absolute; left:-4px; top:6px; bottom:6px; width:2.5px;
+    background:var(--cv); border-radius:2px;
+    box-shadow:0 0 8px var(--cv);
+  }
+  .ic.on::after { content:''; position:absolute; inset:0; background:var(--cv-soft); border-radius:8px; }
+  .ic.on > * { position:relative; z-index:1; }
+  .iconnav .gap { flex:1; }
+
+  /* ─── SIDEBAR ─── */
+  .side {
+    background:rgba(11,8,22,0.55); backdrop-filter:blur(20px);
+    border-right:1px solid var(--card-line);
+    display:flex; flex-direction:column;
+    padding:22px 14px 16px;
+    overflow:hidden;
+  }
+  .brand { display:flex; align-items:center; gap:10px; padding:0 6px 22px; }
+  .brand-mark {
+    width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(135deg, #BE9CF0, #6E3FB0);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:700;
+    box-shadow:0 6px 16px rgba(110,63,176,0.45), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+  .brand-name { font-size:15px; font-weight:600; letter-spacing:-0.015em; }
+  .search {
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--card-line);
+    border-radius:9px;
+    padding:8px 10px 8px 32px;
+    font-size:12px; color:var(--text);
+    margin-bottom:18px; width:100%;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2375708A' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='M21 21l-4.35-4.35'/></svg>");
+    background-repeat:no-repeat; background-position:11px center;
+  }
+  .search:focus { outline:none; border-color:rgba(163,125,224,0.40); }
+  .cust-list { flex:1; overflow-y:auto; margin:0 -4px; padding:0 4px 4px; }
+  .cust-list::-webkit-scrollbar { width:0; }
+  .cust {
+    padding:11px 12px; margin-bottom:3px; border-radius:9px;
+    cursor:pointer; position:relative;
+  }
+  .cust:hover { background:rgba(255,255,255,0.025); }
+  .cust.on {
+    background:linear-gradient(135deg, rgba(163,125,224,0.13), rgba(110,63,176,0.04));
+    box-shadow:inset 0 0 0 1px rgba(163,125,224,0.22), 0 4px 14px rgba(0,0,0,0.20);
+  }
+  .cust.on::before {
+    content:''; position:absolute; left:-14px; top:11px; bottom:11px;
+    width:3px; border-radius:2px;
+    background:linear-gradient(180deg,#BE9CF0,#6E3FB0);
+    box-shadow:0 0 10px var(--cv);
+  }
+  .cust-name { font-size:12.5px; font-weight:600; letter-spacing:-0.005em; }
+  .cust-meta { font-size:10.5px; color:var(--text-dim); margin-top:2px; }
+  .add-btn {
+    margin-top:10px; padding:9px 12px;
+    background:rgba(163,125,224,0.06);
+    border:1px dashed rgba(163,125,224,0.28);
+    border-radius:9px;
+    color:var(--cv); font-size:12px; font-weight:600;
+    text-align:center; cursor:pointer; transition:.15s;
+  }
+  .add-btn:hover { background:rgba(163,125,224,0.12); }
+
+  /* ─── MAIN ─── */
+  .main { padding:24px 26px; overflow-y:auto; }
+  .main::-webkit-scrollbar { width:0; }
+
+  .topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
+  .topbar h1 { font-size:24px; font-weight:600; letter-spacing:-0.025em; }
+  .topbar h1 .star { color:var(--cv); margin-left:6px; font-size:17px; }
+  .topbar .updated { font-size:11px; color:var(--text-mute); margin-top:4px; }
+  .topbar-actions { display:flex; gap:8px; }
+  .btn {
+    padding:8px 16px; font-size:12px; font-weight:600;
+    border-radius:9px; cursor:pointer;
+    border:1px solid var(--card-line-2);
+    background:rgba(255,255,255,0.025); color:var(--text-mute); transition:.15s;
+    letter-spacing:-0.005em;
+  }
+  .btn:hover { color:var(--text); border-color:rgba(255,255,255,0.18); background:rgba(255,255,255,0.04); }
+  .btn.primary {
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0);
+    color:#fff; border-color:transparent;
+    box-shadow:0 6px 18px rgba(110,63,176,0.40), inset 0 1px 0 rgba(255,255,255,0.20);
+  }
+  .btn.primary:hover { filter:brightness(1.08); }
+  .btn.tiny { padding:5px 10px; font-size:11px; }
+
+  /* Tabs */
+  .subtabs {
+    display:flex; gap:4px; padding:4px;
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--card-line);
+    border-radius:10px;
+    margin-bottom:18px;
+    width:fit-content;
+  }
+  .subtab {
+    padding:7px 16px; font-size:12px; font-weight:500;
+    color:var(--text-mute); border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .subtab.on {
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0); color:#fff;
+    box-shadow:0 4px 12px rgba(110,63,176,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+  }
+  .subtab:not(.on):hover { color:var(--text); }
+
+  /* Panel base */
+  .panel {
+    background:linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.012));
+    border:1px solid var(--card-line);
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .panel-h {
+    padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--card-line);
+  }
+  .panel-h .ttl { font-size:14px; font-weight:600; letter-spacing:-0.01em; display:flex; align-items:center; gap:10px; }
+  .panel-h .stamp {
+    font-size:9.5px; padding:3px 8px; border-radius:5px;
+    background:rgba(91,217,159,0.10); color:var(--ok);
+    font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .panel-h .actions { display:flex; gap:8px; align-items:center; }
+  .vw-pill {
+    display:flex; align-items:center; gap:7px;
+    padding:6px 12px; font-size:11.5px; font-weight:500;
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--card-line); border-radius:7px;
+    color:var(--text-mute); cursor:pointer;
+  }
+  .vw-pill::after { content:"▾"; font-size:9px; opacity:0.6; }
+  .ico-btn {
+    width:30px; height:30px;
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--card-line); border-radius:7px;
+    color:var(--text-mute); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .ico-btn:hover { color:var(--text); }
+
+  /* ── ABSTRACT ARCHITECTURE SVG ── */
+  .arch-stage {
+    height:340px;
+    background:
+      radial-gradient(circle 400px at 50% 50%, rgba(163,125,224,0.06), transparent 70%),
+      linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.05));
+    position:relative;
+  }
+  .arch-stage svg { width:100%; height:100%; display:block; }
+  .arch-node {
+    fill:url(#nodeGrad);
+    stroke:rgba(163,125,224,0.40);
+    stroke-width:1;
+    filter:drop-shadow(0 4px 12px rgba(110,63,176,0.40));
+  }
+  .arch-line {
+    fill:none;
+    stroke:url(#lineGrad);
+    stroke-width:1.5;
+    stroke-dasharray:0;
+    stroke-linecap:round;
+  }
+  .arch-line.dashed { stroke-dasharray:4 4; opacity:0.6; }
+  .arch-label {
+    fill:var(--text);
+    font-size:11px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    text-anchor:middle;
+    letter-spacing:-0.01em;
+  }
+  .arch-sub {
+    fill:var(--text-dim);
+    font-size:9px;
+    font-weight:500;
+    font-family:'Inter',sans-serif;
+    text-anchor:middle;
+  }
+
+  /* Stat strip under diagram */
+  .arch-stats {
+    display:grid; grid-template-columns:repeat(5,1fr);
+    border-top:1px solid var(--card-line);
+  }
+  .arch-stat {
+    padding:18px 20px;
+    border-right:1px solid var(--card-line);
+  }
+  .arch-stat:last-child { border-right:none; }
+  .arch-stat .lbl { font-size:10.5px; color:var(--text-mute); font-weight:500; letter-spacing:-0.005em; }
+  .arch-stat .val { font-size:22px; font-weight:600; margin-top:5px; letter-spacing:-0.025em; }
+  .arch-stat .val .small { font-size:13px; color:var(--text-mute); margin-left:3px; font-weight:500; }
+  .arch-stat .val.text { font-size:14px; font-weight:600; }
+
+  /* Bottom row */
+  .bottom-row { display:grid; grid-template-columns:1fr 1fr 1.15fr; gap:14px; margin-top:16px; }
+
+  /* Upload */
+  .upload-zone {
+    margin:18px;
+    border:1.5px dashed rgba(163,125,224,0.30);
+    border-radius:12px;
+    padding:26px 16px 22px;
+    text-align:center;
+    background:rgba(163,125,224,0.025);
+    cursor:pointer; transition:.15s;
+  }
+  .upload-zone:hover { background:rgba(163,125,224,0.06); border-color:rgba(163,125,224,0.50); }
+  .upload-ic {
+    width:48px; height:48px; margin:0 auto 14px;
+    border-radius:13px;
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:22px;
+    box-shadow:0 8px 22px rgba(110,63,176,0.40), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .upload-title { font-size:13px; font-weight:600; }
+  .upload-sub { font-size:11px; color:var(--text-mute); margin-top:5px; }
+  .browse {
+    margin-top:14px; padding:8px 18px;
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0);
+    border:none; border-radius:8px; color:#fff;
+    font-size:12px; font-weight:600; cursor:pointer;
+    box-shadow:0 4px 12px rgba(110,63,176,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+  }
+
+  /* Past Transcripts */
+  .tr-list { padding:6px 18px 14px; }
+  .tr-item {
+    display:flex; align-items:center; gap:11px;
+    padding:11px 0; border-bottom:1px solid var(--card-line);
+  }
+  .tr-item:last-child { border:none; }
+  .tr-ic {
+    width:30px; height:30px; border-radius:7px;
+    background:linear-gradient(135deg, rgba(163,125,224,0.18), rgba(163,125,224,0.06));
+    border:1px solid rgba(163,125,224,0.20);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cv); font-size:12px; flex-shrink:0;
+  }
+  .tr-info { flex:1; min-width:0; }
+  .tr-name { font-size:12.5px; font-weight:500; }
+  .tr-when { font-size:10.5px; color:var(--text-dim); margin-top:2px; }
+  .tr-act { color:var(--text-fade); font-size:13px; cursor:pointer; }
+  .tr-act:hover { color:var(--cv); }
+
+  /* AI Insights */
+  .ai-grid {
+    padding:14px 16px;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+  }
+  .ai-tile {
+    background:rgba(255,255,255,0.018);
+    border:1px solid var(--card-line);
+    border-radius:9px;
+    padding:11px 12px;
+  }
+  .ai-lbl { font-size:10px; color:var(--text-mute); font-weight:500; letter-spacing:-0.005em; }
+  .ai-val { font-size:18px; font-weight:600; margin-top:4px; letter-spacing:-0.025em; }
+  .ai-val .small { font-size:11px; color:var(--text-mute); font-weight:500; margin-left:3px; }
+  .ai-spark { margin-top:6px; height:22px; }
+  .key-sec { padding:14px 18px 16px; border-top:1px solid var(--card-line); }
+  .key-h { font-size:10px; color:var(--text-mute); font-weight:600; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px; }
+  .key-row { display:flex; gap:8px; align-items:flex-start; font-size:11.5px; line-height:1.55; color:var(--text-mute); margin-bottom:6px; }
+  .key-row b { color:var(--text); font-weight:500; }
+  .key-bullet { color:var(--cv); flex-shrink:0; font-size:9px; margin-top:3px; }
+
+  /* ─── RIGHT RAIL ─── */
+  .right { display:flex; flex-direction:column; gap:14px; padding:24px 22px 24px 0; overflow:hidden; }
+
+  /* AI Assistant */
+  .ai-block {
+    flex:1; display:flex; flex-direction:column; min-height:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.012));
+    border:1px solid var(--card-line); border-radius:16px; overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .ai-h2 { padding:16px 18px; border-bottom:1px solid var(--card-line); display:flex; align-items:center; gap:11px; }
+  .ai-icon-big {
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(135deg, #BE9CF0, #6E3FB0);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:15px;
+    box-shadow:0 6px 16px rgba(110,63,176,0.40), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .ai-title { font-size:13.5px; font-weight:600; letter-spacing:-0.01em; }
+  .ai-sub { font-size:10.5px; color:var(--text-dim); margin-top:2px; }
+  .ai-stream {
+    flex:1; overflow-y:auto; padding:16px;
+    display:flex; flex-direction:column; gap:11px; min-height:0;
+  }
+  .ai-stream::-webkit-scrollbar { width:0; }
+  .bubble {
+    padding:11px 13px; border-radius:11px;
+    font-size:12px; line-height:1.55;
+    max-width:85%; letter-spacing:-0.005em;
+  }
+  .bubble.ai {
+    background:rgba(255,255,255,0.025);
+    border:1px solid var(--card-line);
+    color:var(--text); align-self:flex-start;
+  }
+  .bubble.ai .src {
+    margin-top:7px; padding-top:7px; border-top:1px solid var(--card-line);
+    font-size:9.5px; color:var(--text-dim);
+  }
+  .bubble.user {
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0);
+    color:#fff; align-self:flex-end;
+    box-shadow:0 4px 12px rgba(110,63,176,0.25), inset 0 1px 0 rgba(255,255,255,0.20);
+  }
+  .bubble strong { color:var(--cv-hi); font-weight:600; }
+  .bubble.user strong { color:#fff; }
+
+  .ai-input-row {
+    border-top:1px solid var(--card-line);
+    padding:12px 14px;
+    display:flex; gap:8px;
+  }
+  .ai-input {
+    flex:1; background:rgba(255,255,255,0.03);
+    border:1px solid var(--card-line); border-radius:8px;
+    padding:9px 12px; font-size:12px; color:var(--text);
+    font-family:inherit;
+  }
+  .ai-input:focus { outline:none; border-color:rgba(163,125,224,0.40); }
+  .ai-send {
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, #A37DE0, #6E3FB0);
+    border:none; color:#fff; cursor:pointer;
+    box-shadow:0 4px 10px rgba(110,63,176,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+    font-size:14px;
+  }
+
+  /* Future State block */
+  .future-block {
+    background:linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.012));
+    border:1px solid var(--card-line); border-radius:16px; overflow:hidden;
+    box-shadow:var(--shadow); flex-shrink:0;
+  }
+  .future-h { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--card-line); }
+  .future-h h3 { font-size:13.5px; font-weight:600; letter-spacing:-0.01em; }
+  .future-tabs { display:flex; gap:2px; background:rgba(255,255,255,0.025); border:1px solid var(--card-line); border-radius:7px; padding:3px; }
+  .ftab { padding:4px 10px; font-size:10.5px; font-weight:500; color:var(--text-mute); border-radius:5px; cursor:pointer; }
+  .ftab.on { background:linear-gradient(135deg, #A37DE0, #6E3FB0); color:#fff; box-shadow:0 3px 8px rgba(110,63,176,0.25); }
+
+  .fs-card { padding:14px 16px; border-bottom:1px solid var(--card-line); }
+  .fs-card:last-child { border:none; }
+  .fs-card-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .fs-card-h .nm { font-size:12.5px; font-weight:600; letter-spacing:-0.005em; }
+  .fs-card-h .tag { font-size:9px; padding:2px 7px; border-radius:4px; font-weight:700; letter-spacing:0.4px; margin-left:6px; }
+  .fs-card-h .tag.fit { background:rgba(163,125,224,0.18); color:var(--cv-hi); }
+  .fs-card-h .tag.cloud { background:rgba(91,217,159,0.14); color:var(--ok); }
+  .fs-mini {
+    height:90px; background:
+      radial-gradient(circle 200px at 50% 50%, rgba(163,125,224,0.10), transparent 70%),
+      rgba(0,0,0,0.20);
+    border-radius:8px; margin-bottom:10px;
+    border:1px solid var(--card-line);
+    overflow:hidden; position:relative;
+  }
+  .fs-mini svg { width:100%; height:100%; }
+  .fs-stats { display:flex; gap:12px; font-size:10.5px; color:var(--text-mute); margin-bottom:10px; }
+  .fs-stats b { color:var(--text); font-weight:600; }
+  .fs-act { display:flex; gap:6px; }
+  .fs-act .btn { flex:1; font-size:11px; padding:6px 0; text-align:center; }
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="nodeGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(163,125,224,0.18)"/>
+      <stop offset="100%" stop-color="rgba(110,63,176,0.05)"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(163,125,224,0.10)"/>
+      <stop offset="50%" stop-color="rgba(163,125,224,0.55)"/>
+      <stop offset="100%" stop-color="rgba(163,125,224,0.10)"/>
+    </linearGradient>
+    <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#A37DE0"/>
+      <stop offset="100%" stop-color="#A37DE0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+
+  <!-- ICON RAIL -->
+  <nav class="iconnav">
+    <div class="ic on">▦</div>
+    <div class="ic">⌂</div>
+    <div class="ic">◫</div>
+    <div class="ic">⚙</div>
+    <div class="ic">📊</div>
+    <div class="ic">📁</div>
+    <div class="gap"></div>
+    <div class="ic">?</div>
+    <div class="ic">⛶</div>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">CV</div>
+      <div class="brand-name">Commvault</div>
+    </div>
+    <input class="search" placeholder="Search customers" type="text">
+    <div class="cust-list">
+      <div class="cust on">
+        <div class="cust-name">Starlight Healthcare</div>
+        <div class="cust-meta">1,250 VMs · 320 TB · 6 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Nova Financial</div>
+        <div class="cust-meta">820 VMs · 410 TB · 3 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Pioneer Manufacturing</div>
+        <div class="cust-meta">1,540 VMs · 680 TB · 5 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Summit Education</div>
+        <div class="cust-meta">340 VMs · 90 TB · 2 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Apex Retail Group</div>
+        <div class="cust-meta">2,180 VMs · 1.2 PB · 8 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Bluwave Energy</div>
+        <div class="cust-meta">670 VMs · 240 TB · 4 sites</div>
+      </div>
+      <div class="cust">
+        <div class="cust-name">Evergreen Logistics</div>
+        <div class="cust-meta">1,090 VMs · 520 TB · 7 sites</div>
+      </div>
+    </div>
+    <div class="add-btn">+ Add Customer</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Starlight Healthcare<span class="star">✦</span></h1>
+        <div class="updated">Last updated: May 02, 2026 · 12:48 PM</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn">Update Record</button>
+        <button class="btn primary">Export Report</button>
+      </div>
+    </div>
+
+    <div class="subtabs">
+      <div class="subtab on">Overview</div>
+      <div class="subtab">Insights</div>
+      <div class="subtab">Reports</div>
+      <div class="subtab">Recommendations</div>
+    </div>
+
+    <!-- CURRENT STATE -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="ttl">Current State<span class="stamp">Generated</span></div>
+        <div class="actions">
+          <div class="vw-pill">View · Layout</div>
+          <button class="ico-btn">⚙</button>
+        </div>
+      </div>
+
+      <!-- Abstract architecture stage -->
+      <div class="arch-stage">
+        <svg viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet">
+          <!-- Curved connection paths (drawn first so they sit BEHIND nodes) -->
+          <path class="arch-line" d="M 200 100 C 300 100, 380 170, 450 170"/>
+          <path class="arch-line" d="M 200 240 C 300 240, 380 170, 450 170"/>
+          <path class="arch-line" d="M 450 170 C 540 170, 600 100, 700 100"/>
+          <path class="arch-line" d="M 450 170 C 540 170, 600 240, 700 240"/>
+          <path class="arch-line dashed" d="M 200 100 C 240 60, 280 60, 200 240"/>
+
+          <!-- LEFT NODES — customer infra -->
+          <!-- HQ -->
+          <g transform="translate(140,70)">
+            <rect class="arch-node" x="0" y="0" width="120" height="60" rx="11"/>
+            <text class="arch-label" x="60" y="28">HQ Datacenter</text>
+            <text class="arch-sub" x="60" y="46">VMware · 720 VMs</text>
+          </g>
+          <!-- Branch -->
+          <g transform="translate(140,210)">
+            <rect class="arch-node" x="0" y="0" width="120" height="60" rx="11"/>
+            <text class="arch-label" x="60" y="28">Branch / DR</text>
+            <text class="arch-sub" x="60" y="46">VMware · 530 VMs</text>
+          </g>
+
+          <!-- CENTER — Commvault platform -->
+          <g transform="translate(390,140)">
+            <rect class="arch-node" x="0" y="0" width="140" height="68" rx="13" style="fill:url(#nodeGrad);stroke:rgba(163,125,224,0.70);stroke-width:1.5;filter:drop-shadow(0 8px 20px rgba(110,63,176,0.55))"/>
+            <text class="arch-label" x="70" y="30" style="font-size:13px;fill:var(--cv-hi)">Commvault Platform</text>
+            <text class="arch-sub" x="70" y="48">Avamar + DD9300</text>
+          </g>
+
+          <!-- RIGHT NODES — backup destinations -->
+          <!-- Public Cloud -->
+          <g transform="translate(660,70)">
+            <rect class="arch-node" x="0" y="0" width="130" height="60" rx="11"/>
+            <text class="arch-label" x="65" y="28">Public Cloud</text>
+            <text class="arch-sub" x="65" y="46">AWS · Azure · GCP</text>
+          </g>
+          <!-- Air Gap -->
+          <g transform="translate(660,210)">
+            <rect class="arch-node" x="0" y="0" width="130" height="60" rx="11"/>
+            <text class="arch-label" x="65" y="28">Air Gap Protect</text>
+            <text class="arch-sub" x="65" y="46">Cool · 320 TB</text>
+          </g>
+
+          <!-- Subtle ambient particles -->
+          <circle cx="100" cy="40" r="1" fill="rgba(163,125,224,0.40)"/>
+          <circle cx="820" cy="60" r="1" fill="rgba(163,125,224,0.30)"/>
+          <circle cx="500" cy="40" r="1" fill="rgba(163,125,224,0.25)"/>
+          <circle cx="320" cy="290" r="1" fill="rgba(163,125,224,0.20)"/>
+          <circle cx="600" cy="300" r="1" fill="rgba(163,125,224,0.30)"/>
+        </svg>
+      </div>
+
+      <!-- Stat strip -->
+      <div class="arch-stats">
+        <div class="arch-stat"><div class="lbl">VMs</div><div class="val">1,250</div></div>
+        <div class="arch-stat"><div class="lbl">Storage</div><div class="val">320<span class="small">TB</span></div></div>
+        <div class="arch-stat"><div class="lbl">Workloads</div><div class="val">12</div></div>
+        <div class="arch-stat"><div class="lbl">Sites</div><div class="val">6</div></div>
+        <div class="arch-stat"><div class="lbl">Vendor</div><div class="val text">Avamar + DD</div></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+      <div class="panel">
+        <div class="panel-h"><div class="ttl">Upload Transcript</div></div>
+        <div class="upload-zone">
+          <div class="upload-ic">☁</div>
+          <div class="upload-title">Drop transcript here</div>
+          <div class="upload-sub">.txt · .vtt · .docx · paste text</div>
+          <button class="browse">Browse Files</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><div class="ttl">Past Transcripts</div><span style="font-size:11px;color:var(--text-dim)">4</span></div>
+        <div class="tr-list">
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">QBR_April_2026.vtt</div><div class="tr-when">2h ago · 6 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">CIO_Cloud_Strategy.txt</div><div class="tr-when">04-25 · 8 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">Stakeholder_Map.docx</div><div class="tr-when">04-18 · 11 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+          <div class="tr-item">
+            <div class="tr-ic">📄</div>
+            <div class="tr-info"><div class="tr-name">Discovery_T1.vtt</div><div class="tr-when">04-09 · 14 facts</div></div>
+            <div class="tr-act">↓</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><div class="ttl">AI-Extracted Insights</div></div>
+        <div class="ai-grid">
+          <div class="ai-tile">
+            <div class="ai-lbl">VM Count</div>
+            <div class="ai-val">1,250</div>
+            <svg class="ai-spark" width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,18 L12,16 L24,14 L36,12 L48,13 L60,9 L72,8 L84,5 L100,3 L100,22 L0,22 Z"/>
+              <path fill="none" stroke="#A37DE0" stroke-width="1.5" d="M0,18 L12,16 L24,14 L36,12 L48,13 L60,9 L72,8 L84,5 L100,3"/>
+            </svg>
+          </div>
+          <div class="ai-tile">
+            <div class="ai-lbl">Storage</div>
+            <div class="ai-val">320<span class="small">TB</span></div>
+            <svg class="ai-spark" width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,18 L12,16 L24,14 L36,11 L48,12 L60,8 L72,6 L84,5 L100,2 L100,22 L0,22 Z"/>
+              <path fill="none" stroke="#A37DE0" stroke-width="1.5" d="M0,18 L12,16 L24,14 L36,11 L48,12 L60,8 L72,6 L84,5 L100,2"/>
+            </svg>
+          </div>
+          <div class="ai-tile">
+            <div class="ai-lbl">Workloads</div>
+            <div class="ai-val">12</div>
+            <svg class="ai-spark" width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none">
+              <path fill="url(#sparkGrad)" d="M0,17 L12,15 L24,13 L36,12 L48,10 L60,11 L72,8 L84,6 L100,4 L100,22 L0,22 Z"/>
+              <path fill="none" stroke="#A37DE0" stroke-width="1.5" d="M0,17 L12,15 L24,13 L36,12 L48,10 L60,11 L72,8 L84,6 L100,4"/>
+            </svg>
+          </div>
+        </div>
+        <div class="key-sec">
+          <div class="key-h">Key Takeaways</div>
+          <div class="key-row"><span class="key-bullet">●</span><span><b>Avamar EOL 2027-Q1</b> — hardware refresh forces decision</span></div>
+          <div class="key-row"><span class="key-bullet">●</span><span><b>HIPAA + SOX</b> annual audit Q3</span></div>
+          <div class="key-row"><span class="key-bullet">●</span><span><b>AWS-first</b> 2-year cloud migration</span></div>
+          <div class="key-row"><span class="key-bullet">●</span><span><b>Budget</b> $1.2M FY26 capex approved</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT RAIL -->
+  <aside class="right">
+
+    <!-- AI Assistant -->
+    <div class="ai-block">
+      <div class="ai-h2">
+        <div class="ai-icon-big">⚡</div>
+        <div>
+          <div class="ai-title">AI Architecture Assistant</div>
+          <div class="ai-sub">Powered by Commvault Copilot</div>
+        </div>
+      </div>
+      <div class="ai-stream">
+        <div class="bubble ai">
+          <p>Hi Marek — I've reviewed Starlight's <strong>4 transcripts</strong>. Their current Avamar setup is reaching EOL in 2027-Q1. Want me to draft 2 future-state options?</p>
+        </div>
+        <div class="bubble user">
+          Yes — one keeping HSX on-prem, one cloud-first.
+        </div>
+        <div class="bubble ai">
+          <p>Drafted both. <strong>Future State 1</strong>: Commvault SaaS + HSX-3 on-prem + AWS AGP Cool, Cleanroom for HIPAA. <strong>Future State 2</strong>: pure cloud — SaaS + S3 native + AGP, single AWS region. Both visible at the bottom right.</p>
+          <div class="src">Generated from QBR_April_2026.vtt + Stakeholder_Map.docx</div>
+        </div>
+        <div class="bubble user">
+          Add EKS — they're piloting microservices on AWS.
+        </div>
+        <div class="bubble ai">
+          <p>Added <strong>EKS</strong> to both future states. Future State 2 now reads: 1 site, SaaS, S3 + AGP + EKS workload protection.</p>
+        </div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" placeholder="Ask or describe a change…" type="text">
+        <button class="ai-send">↑</button>
+      </div>
+    </div>
+
+    <!-- Future State -->
+    <div class="future-block">
+      <div class="future-h">
+        <h3>Future State</h3>
+        <div class="future-tabs">
+          <div class="ftab on">Recommended</div>
+          <div class="ftab">Drafts</div>
+        </div>
+      </div>
+
+      <div class="fs-card">
+        <div class="fs-card-h">
+          <div class="nm">Future State 1<span class="tag fit">BEST FIT</span></div>
+        </div>
+        <div class="fs-mini">
+          <svg viewBox="0 0 280 90" preserveAspectRatio="xMidYMid meet">
+            <path class="arch-line" d="M 50 35 C 90 35, 110 45, 140 45" style="stroke-width:1"/>
+            <path class="arch-line" d="M 50 70 C 90 70, 110 45, 140 45" style="stroke-width:1"/>
+            <path class="arch-line" d="M 140 45 C 180 45, 200 25, 230 25" style="stroke-width:1"/>
+            <path class="arch-line" d="M 140 45 C 180 45, 200 65, 230 65" style="stroke-width:1"/>
+            <rect class="arch-node" x="20" y="20" width="60" height="30" rx="6"/>
+            <text class="arch-sub" x="50" y="38" style="font-size:8px;fill:var(--text)">HQ</text>
+            <rect class="arch-node" x="20" y="55" width="60" height="30" rx="6"/>
+            <text class="arch-sub" x="50" y="73" style="font-size:8px;fill:var(--text)">DR</text>
+            <rect class="arch-node" x="115" y="32" width="55" height="26" rx="6" style="stroke:rgba(163,125,224,0.70)"/>
+            <text class="arch-sub" x="142" y="48" style="font-size:8px;fill:var(--cv-hi)">CV SaaS</text>
+            <rect class="arch-node" x="210" y="10" width="60" height="28" rx="6"/>
+            <text class="arch-sub" x="240" y="28" style="font-size:8px;fill:var(--text)">HSX-3</text>
+            <rect class="arch-node" x="210" y="50" width="60" height="28" rx="6"/>
+            <text class="arch-sub" x="240" y="68" style="font-size:8px;fill:var(--text)">AWS AGP</text>
+          </svg>
+        </div>
+        <div class="fs-stats"><span><b>3</b> sites</span><span><b>HSX + AGP</b></span><span><b>Cleanroom</b></span></div>
+        <div class="fs-act">
+          <button class="btn tiny">Compare</button>
+          <button class="btn primary tiny">View →</button>
+        </div>
+      </div>
+
+      <div class="fs-card">
+        <div class="fs-card-h">
+          <div class="nm">Future State 2<span class="tag cloud">CLOUD-FIRST</span></div>
+        </div>
+        <div class="fs-mini">
+          <svg viewBox="0 0 280 90" preserveAspectRatio="xMidYMid meet">
+            <path class="arch-line" d="M 50 45 C 90 45, 110 45, 140 45" style="stroke-width:1"/>
+            <path class="arch-line" d="M 140 45 C 180 45, 200 25, 230 25" style="stroke-width:1"/>
+            <path class="arch-line" d="M 140 45 C 180 45, 200 65, 230 65" style="stroke-width:1"/>
+            <rect class="arch-node" x="20" y="30" width="60" height="30" rx="6"/>
+            <text class="arch-sub" x="50" y="48" style="font-size:8px;fill:var(--text)">AWS Prod</text>
+            <rect class="arch-node" x="115" y="32" width="55" height="26" rx="6" style="stroke:rgba(163,125,224,0.70)"/>
+            <text class="arch-sub" x="142" y="48" style="font-size:8px;fill:var(--cv-hi)">CV SaaS</text>
+            <rect class="arch-node" x="210" y="10" width="60" height="28" rx="6"/>
+            <text class="arch-sub" x="240" y="28" style="font-size:8px;fill:var(--text)">S3 native</text>
+            <rect class="arch-node" x="210" y="50" width="60" height="28" rx="6"/>
+            <text class="arch-sub" x="240" y="68" style="font-size:8px;fill:var(--text)">AGP Cool</text>
+          </svg>
+        </div>
+        <div class="fs-stats"><span><b>1</b> site</span><span><b>S3 + AGP</b></span><span><b>SaaS</b></span></div>
+        <div class="fs-act">
+          <button class="btn tiny">Compare</button>
+          <button class="btn primary tiny">View →</button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+</body></html>
