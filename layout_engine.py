@@ -792,9 +792,20 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
         saas_site, saas_rect = saas_pairs[0]
         sx, sy, sw_, sh_ = saas_rect
         x = sx
-        # `sy + sh_` is the bottom of the SaaS container; add a callout
-        # buffer + the AGP zone label so the cloud header has clearance.
         y = sy + sh_ + 0.30
+        # Phase A — shrink AGP zone to fit between SaaS left edge and the
+        # nearest right-neighbour site. Prevents the Cleanroom-widened zone
+        # from overflowing into a cloud/cluster site sitting to the right.
+        # The shrink floors at MIN_CLOUD_W; a small residual overlap is better
+        # than pushing AGP off the canvas (the alternative right-of-onprem
+        # branch has no room when there are 4 sites already).
+        right_neighbours = [r[0] for r in site_rects if r[0] > sx + sw_ - 0.01]
+        right_wall = (min(right_neighbours) - 0.20 if right_neighbours
+                      else CANVAS_W - MARGIN_RIGHT)
+        budget_w = right_wall - sx
+        if budget_w > 0 and zw > budget_w:
+            zone.fit_to_width(budget_w)
+            zw, zh = zone.preferred_size()
     else:
         if site_rects:
             rightmost_x = max(r[0] + r[2] for r in site_rects)
@@ -802,6 +813,13 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
             rightmost_x = MARGIN_LEFT
         if min_x is not None:
             rightmost_x = max(rightmost_x, min_x)
+        # Phase A — shrink AGP zone to fit between the rightmost site and the
+        # right canvas margin. Prevents the zone from running off the canvas.
+        tentative_x = rightmost_x + AGP_GAP
+        budget_w_else = (CANVAS_W - MARGIN_RIGHT) - tentative_x
+        if budget_w_else > 0 and zw > budget_w_else:
+            zone.fit_to_width(budget_w_else)
+            zw, zh = zone.preferred_size()
         # Snug-pack floor: AGP must be at least AGP_GAP to the right of the
         # rightmost site. When the canvas has horizontal slack (e.g. a single
         # site + AGP doesn't fill 13.33"), push AGP to the right edge so the

@@ -81,7 +81,15 @@ class _CloudBlock(Component):
 
     def preferred_size(self):
         sw, sh = self.status.preferred_size()
-        inner_w = max(self.CLOUD_W, sw)
+        # If CLOUD_W has been shrunk via instance override (fit_to_width),
+        # let the cloud be the binding width and shrink the status chips with
+        # it. Otherwise keep the original behavior (status width can grow the
+        # card). Status.render() honors the passed `w` so this is safe.
+        cls_cloud_w = type(self).CLOUD_W
+        if self.CLOUD_W < cls_cloud_w:
+            inner_w = self.CLOUD_W
+        else:
+            inner_w = max(self.CLOUD_W, sw)
         retention_h = self.RETENTION_H if self.retention_days else 0
         card_inner_h = (self.CLOUD_H + self.DETAIL_GAP + self.DETAIL_H
                         + retention_h + self.STATUS_GAP + sh)
@@ -161,11 +169,14 @@ class _CloudBlock(Component):
                                align='center', valign='middle'))
             retention_y_end += self.RETENTION_H
 
-        # Status chips below detail text
+        # Status chips below detail text. Clamp chip width to inner_w so the
+        # chips shrink along with a fit_to_width-shrunk cloud, instead of
+        # overflowing the card edges.
         status_y = retention_y_end + self.STATUS_GAP
         sw, sh = self.status.preferred_size()
-        shapes.extend(self.status.render(inner_x + (inner_w - sw) / 2,
-                                         status_y, sw, sh))
+        chip_w = min(sw, inner_w)
+        shapes.extend(self.status.render(inner_x + (inner_w - chip_w) / 2,
+                                         status_y, chip_w, sh))
         return shapes
 
     def _render_provider_logo(self, x, y, size):
@@ -280,6 +291,7 @@ class AGPZone(Component):
     CLEANROOM_GAP = 0.25   # wider gap between AGP group and Cleanroom
     CALLOUT_GAP = 0.10
     CALLOUT_H = 0.28
+    MIN_CLOUD_W = 0.95     # hard floor for per-card CLOUD_W when fit_to_width shrinks
 
     def __init__(self, config):
         self.break_ = AirGapBreak()
@@ -332,6 +344,36 @@ class AGPZone(Component):
         total_w = bw + self.BREAK_GAP + cards_w
         total_h = cards_h + self.CALLOUT_GAP + self.CALLOUT_H
         return (total_w, total_h)
+
+    def fit_to_width(self, max_w):
+        """Shrink each child cloud's CLOUD_W uniformly so the zone fits within
+        `max_w`. Cascades by setting an instance attribute on each AGPBlock /
+        CloudCleanroom — they read `self.CLOUD_W` in preferred_size/render,
+        so the override is automatically picked up without touching their code.
+
+        Floors at MIN_CLOUD_W (icons collide below this). Returns True if the
+        zone fits within max_w after shrinking; False if it floored and the
+        zone still overflows."""
+        bw, _ = self.break_.preferred_size()
+        n_clouds = len(self.agps) + (1 if self.cleanroom else 0)
+        if n_clouds == 0:
+            return True
+        # Fixed elements that don't shrink: break + break_gap + per-card padding +
+        # sibling gaps between AGP cards + the wider cleanroom gap (if any).
+        fixed = (bw + self.BREAK_GAP
+                 + n_clouds * (_CloudBlock.CARD_PAD_X * 2)
+                 + self.SIBLING_GAP * (len(self.agps) - 1)
+                 + (self.CLEANROOM_GAP if self.cleanroom else 0))
+        avail_for_clouds = max_w - fixed
+        new_cloud_w = max(self.MIN_CLOUD_W, avail_for_clouds / n_clouds)
+        for c in self.agps:
+            c.CLOUD_W = new_cloud_w
+        if self.cleanroom:
+            self.cleanroom.CLOUD_W = new_cloud_w
+        # If shrinking floored, the zone may still exceed max_w — caller decides
+        # whether to reposition (e.g. move AGP to right-of-onprem branch).
+        final_w, _ = self.preferred_size()
+        return final_w <= max_w + 1e-3
 
     def cloud_entry_x(self, x):
         """Absolute X of the first AGP cloud's left edge — where source
