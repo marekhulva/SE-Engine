@@ -133,6 +133,76 @@ def solve_row(components, max_w, start_x=0.0, start_y=0.0, gaps=None):
                        gaps, used_preferred=False, overflow=overflow)
 
 
+def solve_rows(components, max_w, canvas_h=7.5, start_x=0.0, start_y=0.0,
+               gaps=None, row_gap=0.40, wrap_threshold=0.75):
+    """Try single row; if it overflows by more than `wrap_threshold` inches
+    even at min_size, wrap to multiple rows.
+
+    Returns a list of RowPlans. Each row is solved independently with its
+    own slice of `components` and `gaps`. Subsequent rows start at
+    `start_y + sum(prior row heights) + row_gap`.
+
+    Wrap strategy: greedy left-to-right packing at preferred width. A new
+    row starts when adding the next component would push the row past
+    max_w. This favours preferred-width rendering over tight shrinking —
+    visually cleaner for multi-row layouts.
+
+    `wrap_threshold`: minor overflows (< 0.75") are tolerated as single-row.
+    The centering pass in layout_engine handles them. Only significant
+    overflow triggers wrap — protects existing customers that render
+    fine at slight overrun.
+    """
+    n = len(components)
+    if n == 0:
+        return []
+
+    gaps = list(gaps) if gaps else [0.0] * (n - 1)
+    while len(gaps) < n - 1:
+        gaps.append(0.0)
+
+    # Quick exit: try a single row first. If it fits or only slightly
+    # overflows (under wrap_threshold), keep it single-row.
+    single = solve_row(components, max_w, start_x=start_x, start_y=start_y,
+                       gaps=gaps)
+    if not single.overflow:
+        return [single]
+    # Compute actual overflow in inches — solve_row's `overflow` flag fires
+    # on any deficit, even a tiny one.
+    actual_overflow = single.total_w - max_w
+    if actual_overflow < wrap_threshold:
+        return [single]
+
+    # Otherwise wrap. Greedy split at preferred sizes — favours legible
+    # widths over aggressive shrinking. Each row is then solved with its
+    # own slice of components for final width allocation.
+    pref_widths = [c.preferred_size()[0] for c in components]
+    splits = [0]
+    cur_w = 0.0
+    for i in range(n):
+        next_w = cur_w + pref_widths[i]
+        if i > splits[-1]:
+            next_w += gaps[i - 1]
+        if next_w > max_w and i > splits[-1]:
+            splits.append(i)
+            cur_w = pref_widths[i]
+        else:
+            cur_w = next_w
+    splits.append(n)
+
+    rows = []
+    cy = start_y
+    for k in range(len(splits) - 1):
+        i0, i1 = splits[k], splits[k + 1]
+        row_comps = components[i0:i1]
+        row_gaps = gaps[i0:i1 - 1] if i1 > i0 + 1 else []
+        row = solve_row(row_comps, max_w, start_x=start_x, start_y=cy,
+                        gaps=row_gaps)
+        rows.append(row)
+        row_h = max((p.h for p in row.placements), default=0.0)
+        cy += row_h + row_gap
+    return rows
+
+
 def _build_plan(components, widths, pref_sizes, start_x, start_y, gaps,
                 used_preferred, overflow):
     """Materialise Placements with x positions advanced by widths + gaps,

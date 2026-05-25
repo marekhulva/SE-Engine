@@ -95,7 +95,9 @@ def _edge_gaps(sites_data, connections):
 def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     """Place sites left-to-right. Uses the constraint solver to allocate
     width: when total preferred width exceeds CANVAS_W, lower-priority
-    components shrink first (per shrink_x elasticity).
+    components shrink first (per shrink_x elasticity). When even at
+    min_size the sites overflow the canvas, the solver wraps to multiple
+    rows (Phase C).
 
     Returns (shapes, rects). rects[i] is the visible container rect.
 
@@ -103,7 +105,7 @@ def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     override the solver for site i. Either x or y alone may be set; the
     other axis falls back to solved value.
     """
-    from layout_solver import solve_row
+    from layout_solver import solve_rows
 
     n = len(sites)
     if gaps is None:
@@ -114,14 +116,18 @@ def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     start_x = MARGIN_LEFT
     start_y = MARGIN_TOP + 0.1 + y_offset
 
-    # Solver budget = canvas minus left/right margins.
     max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
-    plan = solve_row(sites, max_w=max_w, start_x=start_x, start_y=start_y,
-                     gaps=gaps)
+    rows = solve_rows(sites, max_w=max_w, canvas_h=7.5,
+                      start_x=start_x, start_y=start_y, gaps=gaps)
+
+    # Flatten row placements back into site-index order.
+    placements = []
+    for row in rows:
+        placements.extend(row.placements)
 
     shapes = []
     rects = []
-    for i, (site, placement) in enumerate(zip(sites, plan.placements)):
+    for i, (site, placement) in enumerate(zip(sites, placements)):
         lo = layouts[i] or {}
         px = placement.x if lo.get('x') is None else lo['x']
         py = placement.y if lo.get('y') is None else lo['y']
