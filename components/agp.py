@@ -345,6 +345,26 @@ class AGPZone(Component):
         total_h = cards_h + self.CALLOUT_GAP + self.CALLOUT_H
         return (total_w, total_h)
 
+    def min_size(self):
+        """Smallest width at which the zone is still readable — derived from
+        MIN_CLOUD_W floor. Constraint solver uses this when deciding whether
+        AGP fits in a row or needs to wrap to its own row (Phase C)."""
+        bw, _ = self.break_.preferred_size()
+        n_clouds = len(self.agps) + (1 if self.cleanroom else 0)
+        if n_clouds == 0:
+            return (bw, self.CALLOUT_H)
+        fixed = (bw + self.BREAK_GAP
+                 + n_clouds * (_CloudBlock.CARD_PAD_X * 2)
+                 + self.SIBLING_GAP * (len(self.agps) - 1)
+                 + (self.CLEANROOM_GAP if self.cleanroom else 0))
+        min_w = fixed + n_clouds * self.MIN_CLOUD_W
+        _, total_h = self.preferred_size()   # height unaffected by width shrink
+        return (min_w, total_h)
+
+    # Declare elasticity so a future solver can shrink the zone proportionally.
+    shrink_x = 1.0
+    shrink_y = 0.0
+
     def fit_to_width(self, max_w):
         """Shrink each child cloud's CLOUD_W uniformly so the zone fits within
         `max_w`. Cascades by setting an instance attribute on each AGPBlock /

@@ -93,42 +93,42 @@ def _edge_gaps(sites_data, connections):
 
 
 def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
-    """Place sites left-to-right at their preferred sizes. Returns
-    (shapes, rects). rects[i] is the visible container rect of the i-th
-    site — what connection lines anchor to.
+    """Place sites left-to-right. Uses the constraint solver to allocate
+    width: when total preferred width exceeds CANVAS_W, lower-priority
+    components shrink first (per shrink_x elasticity).
 
-    No shrinking, no centering — the canvas is infinite. Whitespace
-    naturally lives outside the containers, never inside them.
+    Returns (shapes, rects). rects[i] is the visible container rect.
 
-    Manual positioning: pass `layouts[i] = {'x': float, 'y': float}` (inches
-    from top-left) to override auto-packing for site i. Either x or y
-    alone may be set; the other axis falls back to auto-pack.
+    Manual positioning: pass `layouts[i] = {'x': float, 'y': float}` to
+    override the solver for site i. Either x or y alone may be set; the
+    other axis falls back to solved value.
     """
+    from layout_solver import solve_row
+
     n = len(sites)
     if gaps is None:
         gaps = [SITE_GAP] * max(0, n - 1)
     if layouts is None:
         layouts = [None] * n
 
-    sizes = [s.preferred_size() for s in sites]
     start_x = MARGIN_LEFT
     start_y = MARGIN_TOP + 0.1 + y_offset
 
+    # Solver budget = canvas minus left/right margins.
+    max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
+    plan = solve_row(sites, max_w=max_w, start_x=start_x, start_y=start_y,
+                     gaps=gaps)
+
     shapes = []
     rects = []
-    cx = start_x
-    for i, (site, (sw, sh)) in enumerate(zip(sites, sizes)):
+    for i, (site, placement) in enumerate(zip(sites, plan.placements)):
         lo = layouts[i] or {}
-        px = cx if lo.get('x') is None else lo['x']
-        py = start_y if lo.get('y') is None else lo['y']
+        px = placement.x if lo.get('x') is None else lo['x']
+        py = placement.y if lo.get('y') is None else lo['y']
+        sw = placement.w
+        sh = placement.h
         shapes.extend(site.render(px, py, sw, sh))
         rects.append(site.container_rect(px, py, sw, sh))
-        # Advance the auto-cursor only when this site was auto-placed on X.
-        # Manually-placed sites don't push subsequent auto-placed ones.
-        if lo.get('x') is None:
-            cx += sw
-            if i < len(gaps):
-                cx += gaps[i]
     return shapes, rects
 
 

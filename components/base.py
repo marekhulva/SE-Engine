@@ -16,15 +16,21 @@ class Component:
     # to declare their importance and how they should be placed.
     #
     # priority: 1 (critical, never shrunk) ... 5 (optional, shrinks first).
-    #   Used by the (future) constraint solver to decide who shrinks when
-    #   the diagram doesn't fit. Today this is metadata only.
+    #   Used by the constraint solver to decide who shrinks when the
+    #   diagram doesn't fit.
     #
     # placement: 'anchor' | 'fill' | 'free'
     #   - 'anchor': fixed natural position (sites, AGP zone)
     #   - 'fill':   sized to fit available space (SaaS app cards)
     #   - 'free':   layout engine decides based on context (Unity card)
+    #
+    # shrink_x, shrink_y: 0.0 = rigid, 1.0 = freely shrinkable. The solver
+    # multiplies (preferred - min) by this elasticity when distributing
+    # the deficit across components in the same priority tier.
     priority = 1
     placement = 'anchor'
+    shrink_x = 0.0
+    shrink_y = 0.0
 
     def preferred_size(self):
         raise NotImplementedError(f'{type(self).__name__}.preferred_size()')
@@ -33,6 +39,16 @@ class Component:
         """Smallest size at which the component is still readable.
         Default is preferred_size — components that can shrink override."""
         return self.preferred_size()
+
+    def size_for(self, max_w, max_h):
+        """Return the (w, h) the component will actually use when constrained
+        to fit inside (max_w, max_h). Must satisfy min_size <= result <=
+        preferred_size. Default clamps preferred against the bounds; components
+        with internal scaling override for proportional shrinking."""
+        pw, ph = self.preferred_size()
+        mw, mh = self.min_size()
+        return (max(mw, min(pw, max_w)),
+                max(mh, min(ph, max_h)))
 
     def render(self, x, y, w, h):
         raise NotImplementedError(f'{type(self).__name__}.render()')
