@@ -263,8 +263,20 @@ def _clients_layer_center_y(site, site_y):
 
 
 def _route_orthogonal(routed, rect_by_id, site_by_id=None):
-    """Non-adjacent connections: 3-segment U-shape routing below the
-    sites. Each connection gets its own bus lane stacked downward."""
+    """Non-adjacent connections: 3-segment U-shape routing.
+
+    Two improvements over the legacy "always-below" routing:
+      1. Direction choice — route ABOVE the sites when the canvas has more
+         slack above than below. Avoids the long dead-space bus lane below
+         when the title area has free vertical room.
+      2. Step-over for replication — non-adjacent replication anchors at
+         the PDL row (source/target storage level) instead of container
+         edges, so the line reads as flowing between storage layers like
+         adjacent replication does.
+
+    Each connection still gets its own lane stacked away from the sites
+    (downward for below-routing, upward for above-routing).
+    """
     if not routed:
         return []
 
@@ -275,34 +287,96 @@ def _route_orthogonal(routed, rect_by_id, site_by_id=None):
     for key in bottom:
         bottom[key].sort(key=lambda t: rect_by_id[t[1]][0])
 
-    def bottom_anchor(site_id, conn_idx):
-        x, y, w, h = rect_by_id[site_id]
+    def slot_frac(site_id, conn_idx):
         lst = bottom[site_id]
         pos = next(idx for idx, (ci, _) in enumerate(lst) if ci == conn_idx)
-        frac = (pos + 1) / (len(lst) + 1)
-        return (x + w * frac, y + h)
+        return (pos + 1) / (len(lst) + 1)
 
-    # Clear the callout bar that sits below each site container.
-    # site rect = container only; callouts add CALLOUT_GAP (~0.05) + callout_h (~0.28).
+    def bottom_anchor(site_id, conn_idx):
+        x, y, w, h = rect_by_id[site_id]
+        return (x + w * slot_frac(site_id, conn_idx), y + h)
+
+    def top_anchor(site_id, conn_idx):
+        x, y, w, h = rect_by_id[site_id]
+        return (x + w * slot_frac(site_id, conn_idx), y)
+
+    def pdl_anchor(site_id, side):
+        """Anchor at the source/target PDL center on the relevant edge —
+        used for replication connections so the line flows storage→storage
+        rather than container-edge→container-edge."""
+        x, y, w, h = rect_by_id[site_id]
+        site = site_by_id.get(site_id) if site_by_id else None
+        site_y = y - _label_block_offset(site)
+        cy = _clients_layer_center_y(site, site_y) if site else None
+        if cy is None:
+            cy = y + h * 0.25
+        return (x + w if side == 'E' else x, cy)
+
+    # Decide direction: above vs below the site cluster, based on slack.
     max_bottom = max(y + h for (x, y, w, h) in rect_by_id.values())
+    min_top    = min(y     for (x, y, w, h) in rect_by_id.values())
+
     callout_clearance = 0.0
     if site_by_id:
         for s in site_by_id.values():
-            if s is None: continue
+            if s is None:
+                continue
             cb = getattr(s, 'callout', None)
             if cb is not None:
                 _, ch = cb.preferred_size()
                 callout_clearance = max(callout_clearance,
                                         getattr(s, 'CALLOUT_GAP', 0.05) + ch + 0.10)
-    LANE_BASE = max_bottom + max(0.55, callout_clearance + 0.35)
-    LANE_GAP = 0.28
+
+    # Title sits at y=0.33 with h=0.57 → ends at y=0.90. Above-slack is the
+    # space between the title and the highest-positioned site (min_top).
+    TITLE_BOTTOM = 0.90
+    above_slack = max(0.0, min_top - TITLE_BOTTOM - 0.10)
+    below_slack = max(0.0, 7.5 - max_bottom - callout_clearance - 0.10)
+    route_above = above_slack > below_slack and above_slack >= 0.60
+
+    if route_above:
+        LANE_BASE_NONREP = min_top - 0.20
+        LANE_STEP = -0.28
+    else:
+        LANE_BASE_NONREP = max_bottom + max(0.55, callout_clearance + 0.35)
+        LANE_STEP = 0.28
+
+    # Replication connections route close to the PDL level — just outside the
+    # site bounding box rather than down at the callout bar. PDL typically
+    # sits in the upper third of the site, so "above" is usually closer to
+    # the storage layer than "below". Prefer above whenever there's room.
+    REPLICATION_CLEARANCE = 0.35
+    rep_above = above_slack >= REPLICATION_CLEARANCE
+    if rep_above:
+        LANE_BASE_REP = min_top - REPLICATION_CLEARANCE
+        LANE_STEP_REP = -0.28
+    else:
+        LANE_BASE_REP = max_bottom + REPLICATION_CLEARANCE
+        LANE_STEP_REP = 0.28
 
     shapes = []
     for lane_idx, (i, c) in enumerate(routed):
         a, b = c['from'], c['to']
-        x1, y1 = bottom_anchor(a, i)
-        x2, y2 = bottom_anchor(b, i)
-        bus_y = LANE_BASE + lane_idx * LANE_GAP
+        is_rep = _is_replication(c)
+        if is_rep:
+            bus_y = LANE_BASE_REP + lane_idx * LANE_STEP_REP
+        else:
+            bus_y = LANE_BASE_NONREP + lane_idx * LANE_STEP
+
+        if is_rep:
+            ax, ay, aw, ah = rect_by_id[a]
+            bx, by, bw, bh = rect_by_id[b]
+            side_a = 'E' if bx > ax else 'W'
+            side_b = 'E' if ax > bx else 'W'
+            x1, y1 = pdl_anchor(a, side_a)
+            x2, y2 = pdl_anchor(b, side_b)
+        elif route_above:
+            x1, y1 = top_anchor(a, i)
+            x2, y2 = top_anchor(b, i)
+        else:
+            x1, y1 = bottom_anchor(a, i)
+            x2, y2 = bottom_anchor(b, i)
+
         shapes.extend(Connection(x1, y1, x2, y2,
                                  c.get('speed', ''),
                                  bus_y=bus_y).render())

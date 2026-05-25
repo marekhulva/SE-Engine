@@ -89,7 +89,7 @@ class Connection(Component):
         return shapes
 
     def _render_orthogonal(self):
-        # 3 dashed segments: source down to bus, across, back up to target
+        # 3 dashed segments: source → bus, across, bus → target.
         end_arrow = 'end' if self.arrow else None
         sk = dict(stroke=self._stroke, sw=self._sw, dash=self._dash)
         shapes = [
@@ -100,9 +100,18 @@ class Connection(Component):
         ]
         if self.speed:
             mid_x = (self.x1 + self.x2) / 2
-            # Pill above the horizontal bus segment
-            pill_y = self.bus_y - self.LABEL_OFFSET - self.LABEL_H
-            shapes.append(line(mid_x, pill_y + self.LABEL_H, mid_x, self.bus_y,
+            # Pill sits between the bus and the endpoints. When the bus is
+            # ABOVE the endpoints (above-routing), pill goes below the bus
+            # toward the sites — keeps it from colliding with the title bar.
+            avg_y = (self.y1 + self.y2) / 2
+            bus_below_endpoints = self.bus_y > avg_y
+            if bus_below_endpoints:
+                pill_y = self.bus_y - self.LABEL_OFFSET - self.LABEL_H
+                stub_y0, stub_y1 = pill_y + self.LABEL_H, self.bus_y
+            else:
+                pill_y = self.bus_y + self.LABEL_OFFSET
+                stub_y0, stub_y1 = self.bus_y, pill_y
+            shapes.append(line(mid_x, stub_y0, mid_x, stub_y1,
                                stroke=self.STROKE, sw=0.75, dash='solid'))
             shapes.extend(self._pill(mid_x, pill_y))
         return shapes
