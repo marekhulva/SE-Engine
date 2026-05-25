@@ -439,6 +439,68 @@ def _place_saas_app_rows(saas_app_data, agp_configs, start_x, start_y,
     return shapes, (start_x, start_y, max_right - start_x, total_h)
 
 
+def get_layout_bounds(scenario):
+    """Return bounding boxes for sites and the AGP zone without rendering shapes.
+    Used by the AI layout reviewer to measure current positions before deciding
+    whether adjustments are needed after a mutation."""
+    sites_data = scenario.get('sites', [])
+    regular_data = [d for d in sites_data if d.get('type') != 'saas_app']
+    sites = [_build_site(d) for d in regular_data]
+
+    show_unity = scenario.get('unity', True)
+    unity_reserve = 0.0
+    if show_unity:
+        unity_card = UnityCard()
+        unity_reserve = unity_card.preferred_size()[1] + 0.12
+
+    auto_gaps = _edge_gaps(sites_data, scenario.get('connections', []))
+    base_gap = scenario.get('site_gap')
+    if isinstance(base_gap, (int, float)) and base_gap > 0:
+        auto_gaps = [float(base_gap)] * max(0, len(sites) - 1)
+
+    _, rects = _pack_sites(
+        sites,
+        y_offset=unity_reserve,
+        gaps=auto_gaps,
+        layouts=[d.get('layout') for d in regular_data],
+    )
+
+    site_bounds = []
+    for d, r in zip(regular_data, rects):
+        x, y, w, h = r
+        site_bounds.append({
+            'id':   d.get('id') or _slugify(d.get('name', '')),
+            'name': d.get('name', ''),
+            'x': round(x, 3), 'y': round(y, 3),
+            'w': round(w, 3), 'h': round(h, 3),
+        })
+
+    agp_bounds = None
+    agp_list = scenario.get('agps') or ([scenario['agp']] if scenario.get('agp') else [])
+    if agp_list and sites:
+        agp_config = agp_list[0]
+        ax, ay = _agp_xy(agp_config, sites, rects)
+        # Respect saved AGP layout overrides so the reviewer sees the current visual state.
+        agp_lo = scenario.get('_agp_layout') or {}
+        if agp_lo.get('x') is not None:
+            ax = agp_lo['x']
+        if agp_lo.get('y') is not None:
+            ay = agp_lo['y']
+        zone = AGPZone(agp_config)
+        aw, ah = zone.preferred_size()
+        agp_bounds = {
+            'x': round(ax, 3), 'y': round(ay, 3),
+            'w': round(aw, 3), 'h': round(ah, 3),
+        }
+
+    return {
+        'canvas_w': CANVAS_W,
+        'canvas_h': 7.5,
+        'sites': site_bounds,
+        'agp': agp_bounds,
+    }
+
+
 def generate_layout(scenario):
     """Main entry point. Returns positioned shapes JSON."""
     sites_data = scenario['sites']
@@ -517,10 +579,17 @@ def generate_layout(scenario):
                      else None)
 
     if agp_config and sites:
+        _agp_lo = scenario.get('_agp_layout') or {}
+        # SaaS only routes to AGP if explicitly opted in via the AGP config —
+        # by default SaaS uses Commvault SaaS protection, not AGP. The secondary
+        # SaaS-AGP card handles the dedicated SaaS-AGP case.
+        _route_saas = (secondary_agp is None) and bool(agp_config.get('route_from_saas'))
         shapes.extend(_place_agp(agp_config, sites, rects,
                                  unity_reserve, badge_num=agp_badge_num,
-                                 route_saas=(secondary_agp is None),
-                                 force_onprem_anchor=(secondary_agp is not None)))
+                                 route_saas=_route_saas,
+                                 force_onprem_anchor=(secondary_agp is not None),
+                                 exact_x=_agp_lo.get('x'),
+                                 exact_y=_agp_lo.get('y')))
 
     if secondary_agp is not None:
         shapes.extend(_place_saas_agp(secondary_agp, sites, rects))
@@ -685,7 +754,7 @@ def _agp_xy(config, sites, site_rects):
 
 
 def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None,
-               route_saas=True, force_onprem_anchor=False):
+               route_saas=True, force_onprem_anchor=False, exact_x=None, exact_y=None):
     """Position the AGP zone.
 
     Placement rule:
@@ -756,6 +825,12 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
                  else MARGIN_TOP + 0.1 + y_offset)
         if min_y is not None:
             y = max(y, min_y)
+
+    # Hard overrides from AI layout reviewer — bypass all auto-placement.
+    if exact_x is not None:
+        x = exact_x
+    if exact_y is not None:
+        y = exact_y
 
     target_x = zone.cloud_entry_x(x)
     target_y = zone.cloud_entry_y(y)
