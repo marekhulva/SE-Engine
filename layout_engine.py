@@ -139,16 +139,18 @@ def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
 
 
 def _route_connections(scenario, sites_data, rects, sites=None):
-    """Emit Connection shapes for each edge in `connections[]`.
+    """Emit Connection shapes for every edge in `connections[]`.
 
-    Adjacent sites use straight E/W lines with anchor slots distributed
-    along the shared edge. Non-adjacent connections route orthogonally
-    through a bus lane below the deepest site.
+    ONE rule, no special cases:
+      1. Drop a vertical leg south from the source's bottom-center to a
+         shared horizontal lane just below the deepest site.
+      2. Run horizontally along the lane to the target's x-column.
+      3. Rise north into the target's bottom-center.
 
-    Replication connections are special: they happen at the production
-    data level, so both endpoints anchor to the source/target site's
-    "Protected Workloads" (ClientsAndStorage) row Y rather than to a
-    generic vertical slot on the container edge.
+    No PDL anchoring, no replication-vs-other distinction, no adjacent-
+    vs-non-adjacent split. Same pattern for every edge. Sites with
+    multiple outbound connections share the south leg and as much of the
+    horizontal run as their target columns allow.
     """
     connections = scenario.get('connections', [])
     if not connections:
@@ -156,241 +158,35 @@ def _route_connections(scenario, sites_data, rects, sites=None):
 
     ids = [d.get('id') or _slugify(d['name']) for d in sites_data]
     rect_by_id = dict(zip(ids, rects))
-    site_by_id = dict(zip(ids, sites or []))
-    index_by_id = {sid: i for i, sid in enumerate(ids)}
 
-    valid = [(i, c) for i, c in enumerate(connections)
-             if c['from'] in index_by_id and c['to'] in index_by_id]
+    valid = [c for c in connections
+             if c['from'] in rect_by_id and c['to'] in rect_by_id]
 
-    adjacent = [(i, c) for i, c in valid
-                if abs(index_by_id[c['from']] - index_by_id[c['to']]) == 1]
-    routed = [(i, c) for i, c in valid
-              if abs(index_by_id[c['from']] - index_by_id[c['to']]) > 1]
+    # Shared lane just below the deepest site bottom.
+    max_bottom = max(y + h for (x, y, w, h) in rect_by_id.values())
+    lane_y = max_bottom + 0.55
 
-    shapes = []
-    shapes.extend(_route_adjacent(adjacent, rect_by_id, site_by_id))
-    shapes.extend(_route_orthogonal(routed, rect_by_id, site_by_id))
-    return shapes
-
-
-def _route_adjacent(adjacent, rect_by_id, site_by_id):
-    """Straight E/W lines with vertical slot distribution when a site
-    has multiple connections on the same side. Replication connections
-    are pinned to the Protected Workloads row Y on both sides."""
-    if not adjacent:
-        return []
-
-    def side_of(src_id, dst_id):
-        return 'E' if rect_by_id[dst_id][0] > rect_by_id[src_id][0] else 'W'
-
-    # Group connections by (site_id, side) for vertical slot distribution
-    # of NON-replication links. Replication links are not slotted because
-    # they always anchor to a fixed Y (the workloads row).
-    slots = {}
-    for i, c in adjacent:
-        if _is_replication(c):
-            continue
-        a, b = c['from'], c['to']
-        slots.setdefault((a, side_of(a, b)), []).append((i, b))
-        slots.setdefault((b, side_of(b, a)), []).append((i, a))
-    for key in slots:
-        slots[key].sort(key=lambda t: rect_by_id[t[1]][1])
-
-    def slotted_anchor(site_id, side, conn_idx):
-        x, y, w, h = rect_by_id[site_id]
-        lst = slots[(site_id, side)]
-        pos = next(idx for idx, (ci, _) in enumerate(lst) if ci == conn_idx)
-        frac = (pos + 1) / (len(lst) + 1)
-        return (x + w if side == 'E' else x, y + h * frac)
-
-    def replication_anchor(site_id, side):
-        x, y, w, h = rect_by_id[site_id]
-        site = site_by_id.get(site_id)
-        site_y = y - _label_block_offset(site)
-        cy = _clients_layer_center_y(site, site_y)
-        if cy is None:
-            cy = y + h * 0.25
-        return (x + w if side == 'E' else x, cy)
+    def bottom_center(rect):
+        x, y, w, h = rect
+        return (x + w / 2, y + h)
 
     shapes = []
-    for i, c in adjacent:
-        a, b = c['from'], c['to']
-        if _is_replication(c):
-            x1, y1 = replication_anchor(a, side_of(a, b))
-            x2, y2 = replication_anchor(b, side_of(b, a))
-        else:
-            x1, y1 = slotted_anchor(a, side_of(a, b), i)
-            x2, y2 = slotted_anchor(b, side_of(b, a), i)
-        if _is_replication(c):
-            shapes.extend(Connection(x1, y1, x2, y2, c.get('speed', ''),
-                                     stroke=COLORS['purple_primary'],
-                                     sw=2.0, dash='solid').render())
-        else:
-            shapes.extend(Connection(x1, y1, x2, y2, c.get('speed', '')).render())
+    for c in valid:
+        sx, sy = bottom_center(rect_by_id[c['from']])
+        tx, ty = bottom_center(rect_by_id[c['to']])
+        shapes.extend(Connection(sx, sy, tx, ty,
+                                 c.get('speed', ''),
+                                 bus_y=lane_y).render())
     return shapes
 
 
 def _is_replication(c):
     """Connection counts as 'replication' if its speed/label says so or
-    its kind is explicitly 'replication'."""
+    its kind is explicitly 'replication'. Used only by the copy-badge
+    numbering logic — the connection renderer treats all kinds the same."""
     label = (c.get('speed') or c.get('label') or '').lower()
     kind = (c.get('kind') or '').lower()
     return 'replication' in label or kind == 'replication'
-
-
-def _label_block_offset(site):
-    """Vertical distance from the site's outer top to the container top,
-    so we can recover site_y from the container rect's y."""
-    if site is None:
-        return 0
-    return getattr(site, 'LABEL_BLOCK_H', 0) + getattr(site, 'LABEL_GAP', 0)
-
-
-def _clients_layer_center_y(site, site_y):
-    """Absolute Y of the ClientsAndStorage (Protected Workloads) box
-    vertical center inside `site`. Walks the inner VStack the same way
-    `_storage_layer_center_y` does. Returns None if not found."""
-    inner = getattr(site, '_inner', None)
-    if inner is None:
-        return None
-    cy = (site_y + site.LABEL_BLOCK_H + site.LABEL_GAP + site.INNER_PAD)
-    for child in inner.children:
-        ch = child.preferred_size()[1]
-        if isinstance(child, ClientsAndStorage):
-            return cy + ch / 2
-        cy += ch + inner.gap
-    return None
-
-
-def _route_orthogonal(routed, rect_by_id, site_by_id=None):
-    """Non-adjacent connections: 3-segment U-shape routing.
-
-    Two improvements over the legacy "always-below" routing:
-      1. Direction choice — route ABOVE the sites when the canvas has more
-         slack above than below. Avoids the long dead-space bus lane below
-         when the title area has free vertical room.
-      2. Step-over for replication — non-adjacent replication anchors at
-         the PDL row (source/target storage level) instead of container
-         edges, so the line reads as flowing between storage layers like
-         adjacent replication does.
-
-    Each connection still gets its own lane stacked away from the sites
-    (downward for below-routing, upward for above-routing).
-    """
-    if not routed:
-        return []
-
-    bottom = {}
-    for i, c in routed:
-        bottom.setdefault(c['from'], []).append((i, c['to']))
-        bottom.setdefault(c['to'], []).append((i, c['from']))
-    for key in bottom:
-        bottom[key].sort(key=lambda t: rect_by_id[t[1]][0])
-
-    def slot_frac(site_id, conn_idx):
-        lst = bottom[site_id]
-        pos = next(idx for idx, (ci, _) in enumerate(lst) if ci == conn_idx)
-        return (pos + 1) / (len(lst) + 1)
-
-    def bottom_anchor(site_id, conn_idx):
-        x, y, w, h = rect_by_id[site_id]
-        return (x + w * slot_frac(site_id, conn_idx), y + h)
-
-    def top_anchor(site_id, conn_idx):
-        x, y, w, h = rect_by_id[site_id]
-        return (x + w * slot_frac(site_id, conn_idx), y)
-
-    def pdl_anchor(site_id, side):
-        """Anchor at the source/target PDL center on the relevant edge —
-        used for replication connections so the line flows storage→storage
-        rather than container-edge→container-edge."""
-        x, y, w, h = rect_by_id[site_id]
-        site = site_by_id.get(site_id) if site_by_id else None
-        site_y = y - _label_block_offset(site)
-        cy = _clients_layer_center_y(site, site_y) if site else None
-        if cy is None:
-            cy = y + h * 0.25
-        return (x + w if side == 'E' else x, cy)
-
-    # Decide direction: above vs below the site cluster, based on slack.
-    max_bottom = max(y + h for (x, y, w, h) in rect_by_id.values())
-    min_top    = min(y     for (x, y, w, h) in rect_by_id.values())
-
-    callout_clearance = 0.0
-    if site_by_id:
-        for s in site_by_id.values():
-            if s is None:
-                continue
-            cb = getattr(s, 'callout', None)
-            if cb is not None:
-                _, ch = cb.preferred_size()
-                callout_clearance = max(callout_clearance,
-                                        getattr(s, 'CALLOUT_GAP', 0.05) + ch + 0.10)
-
-    # Title sits at y=0.33 with h=0.57 → ends at y=0.90. Above-slack is the
-    # space between the title and the highest-positioned site (min_top).
-    TITLE_BOTTOM = 0.90
-    above_slack = max(0.0, min_top - TITLE_BOTTOM - 0.10)
-    below_slack = max(0.0, 7.5 - max_bottom - callout_clearance - 0.10)
-    route_above = above_slack > below_slack and above_slack >= 0.60
-
-    if route_above:
-        LANE_BASE_NONREP = min_top - 0.20
-        LANE_STEP = -0.28
-    else:
-        LANE_BASE_NONREP = max_bottom + max(0.55, callout_clearance + 0.35)
-        LANE_STEP = 0.28
-
-    # Replication connections route close to the PDL level — just outside the
-    # site bounding box rather than down at the callout bar. PDL typically
-    # sits in the upper third of the site, so "above" is usually closer to
-    # the storage layer than "below". Prefer above whenever there's room.
-    REPLICATION_CLEARANCE = 0.35
-    rep_above = above_slack >= REPLICATION_CLEARANCE
-    if rep_above:
-        LANE_BASE_REP = min_top - REPLICATION_CLEARANCE
-        LANE_STEP_REP = -0.28
-    else:
-        LANE_BASE_REP = max_bottom + REPLICATION_CLEARANCE
-        LANE_STEP_REP = 0.28
-
-    shapes = []
-    for lane_idx, (i, c) in enumerate(routed):
-        a, b = c['from'], c['to']
-        is_rep = _is_replication(c)
-        if is_rep:
-            bus_y = LANE_BASE_REP + lane_idx * LANE_STEP_REP
-        else:
-            bus_y = LANE_BASE_NONREP + lane_idx * LANE_STEP
-
-        if is_rep:
-            ax, ay, aw, ah = rect_by_id[a]
-            bx, by, bw, bh = rect_by_id[b]
-            side_a = 'E' if bx > ax else 'W'
-            side_b = 'E' if ax > bx else 'W'
-            x1, y1 = pdl_anchor(a, side_a)
-            x2, y2 = pdl_anchor(b, side_b)
-        elif route_above:
-            x1, y1 = top_anchor(a, i)
-            x2, y2 = top_anchor(b, i)
-        else:
-            x1, y1 = bottom_anchor(a, i)
-            x2, y2 = bottom_anchor(b, i)
-
-        # Apply the same styling adjacent replication uses (solid thick purple)
-        # so the diagram reads as one consistent class of "replication" flow
-        # regardless of whether the source and target happen to be neighbours.
-        if is_rep:
-            shapes.extend(Connection(x1, y1, x2, y2,
-                                     c.get('speed', ''),
-                                     bus_y=bus_y,
-                                     stroke=COLORS['purple_primary'],
-                                     sw=2.0, dash='solid').render())
-        else:
-            shapes.extend(Connection(x1, y1, x2, y2,
-                                     c.get('speed', ''),
-                                     bus_y=bus_y).render())
-    return shapes
 
 
 def _content_bbox(shapes):
@@ -848,6 +644,101 @@ def _agp_xy(config, sites, site_rects):
     return x, y
 
 
+def _rect_overlap(a, b, slack=0.02):
+    """Two (x, y, w, h) rectangles overlap (with small slack tolerance)."""
+    return (a[0] < b[0] + b[2] - slack and a[0] + a[2] > b[0] + slack and
+            a[1] < b[1] + b[3] - slack and a[1] + a[3] > b[1] + slack)
+
+
+def _score_agp_placement(zone, site_rects, source_site_ids, site_ids,
+                          min_x=None, min_y=None):
+    """Pick the best (x, y, size_option) for an AGP zone.
+
+    Pure geometric optimization — no hardcoded placement rules.
+    Generates candidate positions, evaluates each against every size
+    option the zone advertises, returns the highest-scoring combo.
+
+    Scoring:
+      - Hard reject if it overflows canvas or overlaps any site
+      - Soft maximize: minimize total Manhattan distance from AGP center
+        to each source-site center (shorter routing lines)
+      - Soft maximize: empty margin around the placed zone (looks less cramped)
+    """
+    options = zone.size_options()
+    site_ids = site_ids or [None] * len(site_rects)
+    src_set = set(source_site_ids or [])
+    source_rects = [r for r, sid in zip(site_rects, site_ids) if sid in src_set]
+    if not source_rects:
+        source_rects = list(site_rects)   # fallback when sources unspecified
+
+    # ── Candidate positions ─────────────────────────────────────────────
+    candidates = []   # list of (x, y, label) for debugging
+    if site_rects:
+        # A) Right of the rightmost site, aligned with the topmost site Y.
+        rightmost_x = max(r[0] + r[2] for r in site_rects)
+        if min_x is not None:
+            rightmost_x = max(rightmost_x, min_x)
+        top_y = min(r[1] for r in site_rects)
+        candidates.append((rightmost_x + AGP_GAP, top_y, 'right_of_sites'))
+        # B) Below each site (one candidate per site).
+        for r in site_rects:
+            sx, sy, sw, sh = r
+            cand_y = sy + sh + 0.30
+            if min_y is not None:
+                cand_y = max(cand_y, min_y)
+            candidates.append((sx, cand_y, f'below_x{sx:.1f}'))
+    else:
+        candidates.append((MARGIN_LEFT, MARGIN_TOP + 0.1, 'origin'))
+
+    # ── Score each (candidate × size_option) combination ────────────────
+    best = None
+    best_score = -float('inf')
+    for cx, cy, _label in candidates:
+        for opt in options:
+            score = _score_one(cx, cy, opt['w'], opt['h'],
+                               site_rects, source_rects, opt.get('shrunk'))
+            if score > best_score:
+                best_score = score
+                best = (cx, cy, opt)
+
+    if best is None:
+        # Shouldn't happen, but degrade gracefully — first option, first pos.
+        first_opt = options[0]
+        return (MARGIN_LEFT, MARGIN_TOP + 0.1, first_opt)
+    return best
+
+
+def _score_one(x, y, w, h, all_sites, source_sites, shrunk):
+    """Score a single (position, size) combo. Returns higher = better.
+    Hard violations (overflow, overlap) return strongly-negative scores
+    so they always lose to any valid candidate."""
+    # Hard: must be inside canvas
+    if x < MARGIN_LEFT - 0.01:           return -1000
+    if x + w > CANVAS_W - MARGIN_RIGHT + 0.02:  return -1000 + (x + w - CANVAS_W)
+    if y < MARGIN_TOP - 0.5:             return -1000
+    if y + h > 7.5 + 0.02:               return -1000 + (y + h - 7.5)
+
+    # Hard: must not overlap any site
+    agp_rect = (x, y, w, h)
+    for r in all_sites:
+        if _rect_overlap(agp_rect, r):
+            return -500
+
+    # Soft: shorter total routing distance to sources wins
+    agp_cx = x + w / 2
+    agp_cy = y + h / 2
+    total_dist = 0.0
+    for r in source_sites:
+        src_cx = r[0] + r[2] / 2
+        src_cy = r[1] + r[3] / 2
+        total_dist += abs(agp_cx - src_cx) + abs(agp_cy - src_cy)
+
+    # Soft: prefer non-shrunk size (better readability) — small bonus only
+    shrink_penalty = 1.0 if shrunk else 0.0
+
+    return -total_dist - shrink_penalty
+
+
 def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None,
                route_saas=True, force_onprem_anchor=False, exact_x=None, exact_y=None,
                source_site_ids=None, site_ids=None):
@@ -902,63 +793,14 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     if force_onprem_anchor:
         saas_pairs = []
 
-    if saas_pairs:
-        # AGP under SaaS: same X as the SaaS site's left edge, Y just
-        # below the SaaS bottom edge (use the rect bottom plus a small gap).
-        saas_site, saas_rect = saas_pairs[0]
-        sx, sy, sw_, sh_ = saas_rect
-        x = sx
-        y = sy + sh_ + 0.30
-        # Phase A — shrink AGP zone to fit between SaaS left edge and the
-        # nearest right-neighbour site. Prevents the Cleanroom-widened zone
-        # from overflowing into a cloud/cluster site sitting to the right.
-        # The shrink floors at MIN_CLOUD_W; a small residual overlap is better
-        # than pushing AGP off the canvas (the alternative right-of-onprem
-        # branch has no room when there are 4 sites already).
-        right_neighbours = [r[0] for r in site_rects if r[0] > sx + sw_ - 0.01]
-        right_wall = (min(right_neighbours) - 0.20 if right_neighbours
-                      else CANVAS_W - MARGIN_RIGHT)
-        budget_w = right_wall - sx
-        if budget_w > 0 and zw > budget_w:
-            zone.fit_to_width(budget_w)
-            zw, zh = zone.preferred_size()
-    else:
-        if site_rects:
-            rightmost_x = max(r[0] + r[2] for r in site_rects)
-        else:
-            rightmost_x = MARGIN_LEFT
-        if min_x is not None:
-            rightmost_x = max(rightmost_x, min_x)
-        # Phase A — shrink AGP zone to fit between the rightmost site and the
-        # right canvas margin. Prevents the zone from running off the canvas.
-        tentative_x = rightmost_x + AGP_GAP
-        budget_w_else = (CANVAS_W - MARGIN_RIGHT) - tentative_x
-        if budget_w_else > 0 and zw > budget_w_else:
-            zone.fit_to_width(budget_w_else)
-            zw, zh = zone.preferred_size()
-        # Snug-pack floor: AGP must be at least AGP_GAP to the right of the
-        # rightmost site. When the canvas has horizontal slack (e.g. a single
-        # site + AGP doesn't fill 13.33"), push AGP to the right edge so the
-        # on-prem cluster and AGP have visual breathing room instead of
-        # collapsing to the left half.
-        x = max(rightmost_x + AGP_GAP, CANVAS_W - MARGIN_RIGHT - zw)
-
-        if onprem_pairs:
-            anchor_site, anchor_rect = max(onprem_pairs,
-                                           key=lambda sr: sr[1][0])
-            site_y = (anchor_rect[1] - anchor_site.LABEL_BLOCK_H
-                      - anchor_site.LABEL_GAP)
-            storage_cy = _storage_layer_center_y(anchor_site, site_y)
-        else:
-            storage_cy = None
-        cloud_center_offset = zone.cloud_entry_y(0)
-        if storage_cy is not None:
-            y = storage_cy - cloud_center_offset
-        else:
-            y = (site_rects[0][1] if site_rects
-                 else MARGIN_TOP + 0.1 + y_offset)
-        if min_y is not None:
-            y = max(y, min_y)
+    # Scorer-driven placement. Generates candidate (position, size_mode)
+    # combos, scores them on fit + line-length, picks the best. No
+    # hardcoded SaaS-tuck or right-of-sites rules — those emerge naturally
+    # when they're the best-scoring candidate.
+    x, y, chosen_option = _score_agp_placement(
+        zone, site_rects, source_site_ids, site_ids, min_x=min_x, min_y=min_y)
+    zone.apply_size_option(chosen_option)
+    zw, zh = zone.preferred_size()
 
     # Hard overrides from AI layout reviewer — bypass all auto-placement.
     if exact_x is not None:

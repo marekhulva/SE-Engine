@@ -18,7 +18,7 @@ from .tokens import COLORS
 
 
 class Connection(Component):
-    STROKE = COLORS['text_muted']
+    STROKE = '#FFFFFF'
     SW = 1.25
     LABEL_BG = COLORS['subzone_bg']
     LABEL_BORDER = COLORS['border_medium']

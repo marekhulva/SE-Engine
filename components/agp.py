@@ -292,6 +292,10 @@ class AGPZone(Component):
     CALLOUT_GAP = 0.10
     CALLOUT_H = 0.28
     MIN_CLOUD_W = 0.95     # hard floor for per-card CLOUD_W when fit_to_width shrinks
+    STACKED_VGAP = 0.18    # vertical gap between stacked AGP cards
+    STACKED_CR_VGAP = 0.30 # wider vertical gap before Cleanroom in stacked mode
+    LAYOUT_HORIZONTAL = 'horizontal'
+    LAYOUT_STACKED = 'stacked'
 
     def __init__(self, config):
         self.break_ = AirGapBreak()
@@ -326,24 +330,102 @@ class AGPZone(Component):
             )
         self.callout_text = config.get('callout',
                                        'All Backups Replicated to AGP')
+        self.layout_mode = self.LAYOUT_HORIZONTAL
 
-    def preferred_size(self):
+    def _preferred_horizontal(self):
         bw, _ = self.break_.preferred_size()
         agp_sizes = [c.preferred_size() for c in self.agps]
         agps_w = (sum(w for w, _ in agp_sizes)
                   + self.SIBLING_GAP * (len(self.agps) - 1))
         all_heights = [h for _, h in agp_sizes]
-
         cards_w = agps_w
         if self.cleanroom:
             cw, ch = self.cleanroom.preferred_size()
             cards_w += self.CLEANROOM_GAP + cw
             all_heights.append(ch)
         cards_h = max(all_heights)
+        return (bw + self.BREAK_GAP + cards_w,
+                cards_h + self.CALLOUT_GAP + self.CALLOUT_H)
 
-        total_w = bw + self.BREAK_GAP + cards_w
-        total_h = cards_h + self.CALLOUT_GAP + self.CALLOUT_H
-        return (total_w, total_h)
+    def _preferred_stacked(self):
+        bw, _ = self.break_.preferred_size()
+        agp_sizes = [c.preferred_size() for c in self.agps]
+        col_w = max(w for w, _ in agp_sizes)
+        agp_total_h = (sum(h for _, h in agp_sizes)
+                       + self.STACKED_VGAP * (len(self.agps) - 1))
+        if self.cleanroom:
+            cw, ch = self.cleanroom.preferred_size()
+            col_w = max(col_w, cw)
+            agp_total_h += self.STACKED_CR_VGAP + ch
+        return (bw + self.BREAK_GAP + col_w,
+                agp_total_h + self.CALLOUT_GAP + self.CALLOUT_H)
+
+    def preferred_size(self):
+        if self.layout_mode == self.LAYOUT_STACKED:
+            return self._preferred_stacked()
+        return self._preferred_horizontal()
+
+    def size_options(self):
+        """Enumerate the size options this zone can take.
+        Returns list of dicts: {mode, w, h, label}.
+        The scorer uses this to evaluate placement candidates against
+        each possible AGP shape and pick the best (position, size) combo."""
+        # Reset any prior shrink so we measure preferred clean.
+        for c in self.agps:
+            try: del c.CLOUD_W
+            except AttributeError: pass
+        if self.cleanroom:
+            try: del self.cleanroom.CLOUD_W
+            except AttributeError: pass
+        opts = []
+        # Mode 1: horizontal at preferred width.
+        self.layout_mode = self.LAYOUT_HORIZONTAL
+        hw, hh = self._preferred_horizontal()
+        opts.append({'mode': self.LAYOUT_HORIZONTAL, 'w': hw, 'h': hh,
+                     'shrunk': False})
+        # Mode 2: horizontal shrunk to MIN_CLOUD_W floor.
+        bw, _ = self.break_.preferred_size()
+        n_clouds = len(self.agps) + (1 if self.cleanroom else 0)
+        fixed = (bw + self.BREAK_GAP
+                 + n_clouds * (_CloudBlock.CARD_PAD_X * 2)
+                 + self.SIBLING_GAP * (len(self.agps) - 1)
+                 + (self.CLEANROOM_GAP if self.cleanroom else 0))
+        min_horiz_w = fixed + n_clouds * self.MIN_CLOUD_W
+        if min_horiz_w < hw - 1e-3:
+            opts.append({'mode': self.LAYOUT_HORIZONTAL, 'w': min_horiz_w,
+                         'h': hh, 'shrunk': True})
+        # Mode 3: stacked at preferred width.
+        self.layout_mode = self.LAYOUT_STACKED
+        sw, sh = self._preferred_stacked()
+        opts.append({'mode': self.LAYOUT_STACKED, 'w': sw, 'h': sh,
+                     'shrunk': False})
+        # Reset to horizontal as the default until placement chooses.
+        self.layout_mode = self.LAYOUT_HORIZONTAL
+        return opts
+
+    def apply_size_option(self, option):
+        """Commit a size option chosen by the scorer: switches layout_mode
+        and applies any required shrink to child cards. After this call,
+        preferred_size() returns the chosen dimensions."""
+        self.layout_mode = option['mode']
+        if option['mode'] == self.LAYOUT_HORIZONTAL and option.get('shrunk'):
+            self.fit_to_width(option['w'])
+        # Stacked mode doesn't need shrinking — its width is bounded by
+        # the widest single card, which is small by construction.
+
+    def pick_layout(self, max_w):
+        """Legacy convenience — single-pass picker used when caller doesn't
+        want to consult the scorer. Tries horizontal preferred, horizontal
+        shrunk, then stacked. Returns the chosen mode."""
+        for opt in self.size_options():
+            if opt['w'] <= max_w + 1e-3:
+                self.apply_size_option(opt)
+                return opt['mode']
+        # Nothing fits — fall back to stacked (narrowest).
+        stacked = next(o for o in self.size_options()
+                       if o['mode'] == self.LAYOUT_STACKED)
+        self.apply_size_option(stacked)
+        return self.LAYOUT_STACKED
 
     def min_size(self):
         """Smallest width at which the zone is still readable — derived from
@@ -410,6 +492,11 @@ class AGPZone(Component):
                 + first.CARD_PAD_TOP + first.CLOUD_H / 2)
 
     def render(self, x, y, w, h):
+        if self.layout_mode == self.LAYOUT_STACKED:
+            return self._render_stacked(x, y, w, h)
+        return self._render_horizontal(x, y, w, h)
+
+    def _render_horizontal(self, x, y, w, h):
         shapes = []
         bw, bh = self.break_.preferred_size()
         agp_sizes = [c.preferred_size() for c in self.agps]
@@ -422,27 +509,21 @@ class AGPZone(Component):
         agp_center_y = self.cloud_entry_y(y)
 
         # AirGapBreak placed so the connection line (at agp_center_y)
-        # passes through the wall's vertical center. Source lines are
-        # drawn separately by the layout engine BEFORE this zone renders,
-        # so the wall image visually covers the line where they overlap.
+        # passes through the wall's vertical center.
         break_y = agp_center_y - self.break_.LINE_Y_FROM_TOP
         shapes.extend(self.break_.render(x, break_y, bw, bh))
 
-        # Render AGP cards left-to-right
+        # AGP cards left-to-right
         cx = agp_x
         for card, (cw_, ch_) in zip(self.agps, agp_sizes):
             shapes.extend(card.render(cx, y, cw_, ch_))
             cx += cw_ + self.SIBLING_GAP
         agps_right = cx - self.SIBLING_GAP
 
-        # Cleanroom: separated by a wider gap with a vertical interrupted
-        # (dashed) line down the middle — visually decoupling the "backup
-        # copy" cards from the "recovery environment".
+        # Cleanroom side-by-side with a dashed divider
         if self.cleanroom:
             cw_, ch_ = self.cleanroom.preferred_size()
             cr_x = agp_x + (agps_right - agp_x) + self.CLEANROOM_GAP
-            # Vertical dashed divider centered in the gap, aligned with the
-            # cards vertically (matches card top/bottom for a clean read).
             divider_x = agps_right + self.CLEANROOM_GAP / 2
             divider_inset = cards_h * 0.10
             shapes.append(line(divider_x, y + divider_inset,
@@ -451,7 +532,7 @@ class AGPZone(Component):
                                dash='dash'))
             shapes.extend(self.cleanroom.render(cr_x, y, cw_, ch_))
 
-        # Callout bar spans ONLY the AGP cards (not the cleanroom)
+        # Callout bar spans the AGP cards
         cards_w = agps_right - agp_x
         callout_y = y + cards_h + self.CALLOUT_GAP
         shapes.append(rect(agp_x, callout_y, cards_w, self.CALLOUT_H,
@@ -459,6 +540,61 @@ class AGPZone(Component):
                            stroke=COLORS['positive'], sw=0.75,
                            radius=0.05))
         shapes.append(text(agp_x, callout_y, cards_w, self.CALLOUT_H,
+                           f'✓  {self.callout_text}',
+                           fs=9, bold=True,
+                           color=COLORS['positive'],
+                           align='center', valign='middle'))
+        return shapes
+
+    def _render_stacked(self, x, y, w, h):
+        """Stacked vertical layout — used when horizontal width budget
+        is exhausted. Cards stack top-to-bottom in a single column to
+        the right of the AirGapBreak. Cleanroom (if present) sits at
+        the bottom with a wider gap and a dashed horizontal divider."""
+        shapes = []
+        bw, bh = self.break_.preferred_size()
+        agp_sizes = [c.preferred_size() for c in self.agps]
+        col_w = max(cw for cw, _ in agp_sizes)
+        if self.cleanroom:
+            col_w = max(col_w, self.cleanroom.preferred_size()[0])
+
+        agp_x = self.cloud_entry_x(x)
+        agp_center_y = self.cloud_entry_y(y)
+        break_y = agp_center_y - self.break_.LINE_Y_FROM_TOP
+        shapes.extend(self.break_.render(x, break_y, bw, bh))
+
+        cy = y
+        agps_bottom = y
+        for card, (cw_, ch_) in zip(self.agps, agp_sizes):
+            # Center each card horizontally inside the column width
+            card_x = agp_x + (col_w - cw_) / 2
+            shapes.extend(card.render(card_x, cy, cw_, ch_))
+            agps_bottom = cy + ch_
+            cy = agps_bottom + self.STACKED_VGAP
+
+        # Cleanroom stacked below with dashed horizontal divider above it
+        if self.cleanroom:
+            cw_, ch_ = self.cleanroom.preferred_size()
+            cr_y = agps_bottom + self.STACKED_CR_VGAP
+            divider_y = agps_bottom + self.STACKED_CR_VGAP / 2
+            divider_inset = col_w * 0.10
+            shapes.append(line(agp_x + divider_inset, divider_y,
+                               agp_x + col_w - divider_inset, divider_y,
+                               stroke=COLORS['text_muted'], sw=1.0,
+                               dash='dash'))
+            cr_x = agp_x + (col_w - cw_) / 2
+            shapes.extend(self.cleanroom.render(cr_x, cr_y, cw_, ch_))
+            content_bottom = cr_y + ch_
+        else:
+            content_bottom = agps_bottom
+
+        # Callout bar across the column at the bottom
+        callout_y = content_bottom + self.CALLOUT_GAP
+        shapes.append(rect(agp_x, callout_y, col_w, self.CALLOUT_H,
+                           fill='#0F2E1A',
+                           stroke=COLORS['positive'], sw=0.75,
+                           radius=0.05))
+        shapes.append(text(agp_x, callout_y, col_w, self.CALLOUT_H,
                            f'✓  {self.callout_text}',
                            fs=9, bold=True,
                            color=COLORS['positive'],
