@@ -660,16 +660,21 @@ def generate_layout(scenario):
 
     if agp_config and sites:
         _agp_lo = scenario.get('_agp_layout') or {}
-        # SaaS only routes to AGP if explicitly opted in via the AGP config —
-        # by default SaaS uses Commvault SaaS protection, not AGP. The secondary
-        # SaaS-AGP card handles the dedicated SaaS-AGP case.
         _route_saas = (secondary_agp is None) and bool(agp_config.get('route_from_saas'))
+        # Flow graph decides which sites actually feed this AGP (honours
+        # source_site_ids + chain detection). Falls back to "all on-prem"
+        # when source_site_ids is absent.
+        from flow_graph import agp_source_ids
+        site_ids_ordered = [d.get('id') for d in regular_data]
+        agp_sources = agp_source_ids(scenario, agp_index=0)
         shapes.extend(_place_agp(agp_config, sites, rects,
                                  unity_reserve, badge_num=agp_badge_num,
                                  route_saas=_route_saas,
                                  force_onprem_anchor=(secondary_agp is not None),
                                  exact_x=_agp_lo.get('x'),
-                                 exact_y=_agp_lo.get('y')))
+                                 exact_y=_agp_lo.get('y'),
+                                 source_site_ids=agp_sources,
+                                 site_ids=site_ids_ordered))
 
     if secondary_agp is not None:
         shapes.extend(_place_saas_agp(secondary_agp, sites, rects))
@@ -834,7 +839,8 @@ def _agp_xy(config, sites, site_rects):
 
 
 def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None,
-               route_saas=True, force_onprem_anchor=False, exact_x=None, exact_y=None):
+               route_saas=True, force_onprem_anchor=False, exact_x=None, exact_y=None,
+               source_site_ids=None, site_ids=None):
     """Position the AGP zone.
 
     Placement rule:
@@ -854,10 +860,30 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     zone = AGPZone(config)
     zw, zh = zone.preferred_size()
 
-    saas_pairs = [(s, r) for s, r in zip(sites, site_rects)
-                  if isinstance(s, SaaSSite)]
-    onprem_pairs = [(s, r) for s, r in zip(sites, site_rects)
-                    if isinstance(s, OnPremSite)]
+    # Source-line filtering: if the flow graph specifies which sites
+    # actually feed this AGP, only those draw lines. Sites listed but not
+    # of a routable type are silently dropped. When source_site_ids is
+    # None, fall back to the legacy "every on-prem site feeds AGP" rule.
+    src_set = set(source_site_ids) if source_site_ids is not None else None
+    site_ids = site_ids or [None] * len(sites)
+
+    saas_pairs_all = [(s, r, sid) for s, r, sid in zip(sites, site_rects, site_ids)
+                      if isinstance(s, SaaSSite)]
+    onprem_pairs_all = [(s, r, sid) for s, r, sid in zip(sites, site_rects, site_ids)
+                        if isinstance(s, OnPremSite)]
+
+    # `saas_pairs` / `onprem_pairs` are used for positioning logic too —
+    # the SaaS-tuck branch needs to know if a SaaS site exists in the row
+    # regardless of whether it's a source. Keep the positional view but
+    # build a filtered view for source-line drawing.
+    saas_pairs   = [(s, r) for s, r, sid in saas_pairs_all]
+    onprem_pairs = [(s, r) for s, r, sid in onprem_pairs_all]
+    if src_set is not None:
+        saas_pairs_routed   = [(s, r) for s, r, sid in saas_pairs_all   if sid in src_set]
+        onprem_pairs_routed = [(s, r) for s, r, sid in onprem_pairs_all if sid in src_set]
+    else:
+        saas_pairs_routed   = saas_pairs
+        onprem_pairs_routed = onprem_pairs
 
     # When the caller is placing a primary AGP that should serve only the
     # on-prem sites (because a separate SaaS AGP will be placed later), the
@@ -943,11 +969,11 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
     stroke_kwargs = dict(stroke=COLORS['purple_light'], sw=1.25, dash='dash')
 
     # On-prem sites: shared bottom-bus below all on-prem containers, then
-    # into AGP via the bus column. Kept separate from SaaS so lines don't
-    # visually converge at the SaaS site.
-    if onprem_pairs:
-        bus_y = max(sy + sh_ for _, (sx, sy, sw_, sh_) in onprem_pairs) + 0.25
-        for s, r in onprem_pairs:
+    # into AGP via the bus column. Only sites that the flow graph says
+    # feed this AGP draw source lines.
+    if onprem_pairs_routed:
+        bus_y = max(sy + sh_ for _, (sx, sy, sw_, sh_) in onprem_pairs_routed) + 0.25
+        for s, r in onprem_pairs_routed:
             sx, sy, sw_, sh_ = r
             s_site_y = sy - s.LABEL_BLOCK_H - s.LABEL_GAP
             src_y = _storage_layer_bottom_y(s, s_site_y) or (sy + sh_)
@@ -962,8 +988,9 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
 
     # SaaS: short direct vertical from SaaS bottom-center down to AGP entry Y,
     # then horizontal into the AirGapBreak. No shared bus — SaaS is already
-    # adjacent to the AGP zone.
-    saas_routed = saas_pairs if route_saas else []
+    # adjacent to the AGP zone. Gated by both `route_saas` (legacy switch)
+    # and the flow graph (saas_pairs_routed already filtered).
+    saas_routed = saas_pairs_routed if route_saas else []
     for s, r in saas_routed:
         sx, sy, sw_, sh_ = r
         saas_cx = sx + sw_ / 2
