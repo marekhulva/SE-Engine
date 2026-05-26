@@ -377,9 +377,19 @@ def _route_orthogonal(routed, rect_by_id, site_by_id=None):
             x1, y1 = bottom_anchor(a, i)
             x2, y2 = bottom_anchor(b, i)
 
-        shapes.extend(Connection(x1, y1, x2, y2,
-                                 c.get('speed', ''),
-                                 bus_y=bus_y).render())
+        # Apply the same styling adjacent replication uses (solid thick purple)
+        # so the diagram reads as one consistent class of "replication" flow
+        # regardless of whether the source and target happen to be neighbours.
+        if is_rep:
+            shapes.extend(Connection(x1, y1, x2, y2,
+                                     c.get('speed', ''),
+                                     bus_y=bus_y,
+                                     stroke=COLORS['purple_primary'],
+                                     sw=2.0, dash='solid').render())
+        else:
+            shapes.extend(Connection(x1, y1, x2, y2,
+                                     c.get('speed', ''),
+                                     bus_y=bus_y).render())
     return shapes
 
 
