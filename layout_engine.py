@@ -366,12 +366,6 @@ def get_layout_bounds(scenario):
     if agp_list and sites:
         agp_config = agp_list[0]
         ax, ay = _agp_xy(agp_config, sites, rects)
-        # Respect saved AGP layout overrides so the reviewer sees the current visual state.
-        agp_lo = scenario.get('_agp_layout') or {}
-        if agp_lo.get('x') is not None:
-            ax = agp_lo['x']
-        if agp_lo.get('y') is not None:
-            ay = agp_lo['y']
         zone = AGPZone(agp_config)
         aw, ah = zone.preferred_size()
         agp_bounds = {
@@ -465,7 +459,6 @@ def generate_layout(scenario):
                      else None)
 
     if agp_config and sites:
-        _agp_lo = scenario.get('_agp_layout') or {}
         _route_saas = (secondary_agp is None) and bool(agp_config.get('route_from_saas'))
         # Flow graph decides which sites actually feed this AGP (honours
         # source_site_ids + chain detection). Falls back to "all on-prem"
@@ -477,8 +470,6 @@ def generate_layout(scenario):
                                  unity_reserve, badge_num=agp_badge_num,
                                  route_saas=_route_saas,
                                  force_onprem_anchor=(secondary_agp is not None),
-                                 exact_x=_agp_lo.get('x'),
-                                 exact_y=_agp_lo.get('y'),
                                  source_site_ids=agp_sources,
                                  site_ids=site_ids_ordered))
 
@@ -740,7 +731,7 @@ def _score_one(x, y, w, h, all_sites, source_sites, shrunk):
 
 
 def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None, min_y=None,
-               route_saas=True, force_onprem_anchor=False, exact_x=None, exact_y=None,
+               route_saas=True, force_onprem_anchor=False,
                source_site_ids=None, site_ids=None):
     """Position the AGP zone.
 
@@ -801,12 +792,6 @@ def _place_agp(config, sites, site_rects, y_offset=0, badge_num='2', min_x=None,
         zone, site_rects, source_site_ids, site_ids, min_x=min_x, min_y=min_y)
     zone.apply_size_option(chosen_option)
     zw, zh = zone.preferred_size()
-
-    # Hard overrides from AI layout reviewer — bypass all auto-placement.
-    if exact_x is not None:
-        x = exact_x
-    if exact_y is not None:
-        y = exact_y
 
     target_x = zone.cloud_entry_x(x)
     target_y = zone.cloud_entry_y(y)
