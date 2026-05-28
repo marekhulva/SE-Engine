@@ -172,21 +172,23 @@ def solve_rows(components, max_w, canvas_h=7.5, start_x=0.0, start_y=0.0,
     if actual_overflow < wrap_threshold:
         return [single]
 
-    # Otherwise wrap. Greedy split at preferred sizes — favours legible
-    # widths over aggressive shrinking. Each row is then solved with its
-    # own slice of components for final width allocation.
-    pref_widths = [c.preferred_size()[0] for c in components]
+    # Otherwise wrap. Split using MIN widths — only start a new row when even
+    # the minimum-size component doesn't fit. This allows the row solver to
+    # compress components from preferred → min within a row, rather than
+    # prematurely wrapping just because preferred widths overflow.
+    # (Old behaviour used preferred widths for splits, which incorrectly
+    # pushed Site 3 / SaaS to a second row even when all could fit at min.)
+    min_widths = [c.min_size()[0] for c in components]
     splits = [0]
-    cur_w = 0.0
+    cur_min_w = 0.0
     for i in range(n):
-        next_w = cur_w + pref_widths[i]
-        if i > splits[-1]:
-            next_w += gaps[i - 1]
-        if next_w > max_w and i > splits[-1]:
+        gap = gaps[i - 1] if i > splits[-1] else 0.0
+        candidate = cur_min_w + gap + min_widths[i]
+        if candidate > max_w + 1e-6 and i > splits[-1]:
             splits.append(i)
-            cur_w = pref_widths[i]
+            cur_min_w = min_widths[i]
         else:
-            cur_w = next_w
+            cur_min_w = candidate
     splits.append(n)
 
     rows = []

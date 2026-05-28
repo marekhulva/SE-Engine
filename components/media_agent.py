@@ -54,35 +54,47 @@ class MediaAgent(Component):
     def render(self, x, y, w, h):
         shapes = []
 
-        # Center the tightly-packed icon row horizontally
-        icons_w = self._icons_width()
-        start_x = x + (w - icons_w) / 2
+        # Scale server icon to fit available width when compressed by HStack.
+        icons_w_pref = self._icons_width()
+        max_icon_w = w - self.SIDE_PAD * 2
+        if icons_w_pref > max_icon_w and icons_w_pref > 0:
+            scale = max_icon_w / icons_w_pref
+            server_size = self.SERVER_SIZE * scale
+            icon_gap = self.ICON_GAP * scale
+        else:
+            scale = 1.0
+            server_size = self.SERVER_SIZE
+            icon_gap = self.ICON_GAP
 
-        badge_size = self.SERVER_SIZE * self.BADGE_FRAC
+        icons_w = self.count * server_size + (self.count - 1) * icon_gap
+        start_x = x + (w - icons_w) / 2
+        badge_size = server_size * self.BADGE_FRAC
+        label_h = self.LABEL_H * scale
+        label_gap = self.LABEL_GAP * scale
 
         for i in range(self.count):
-            sx = start_x + i * (self.SERVER_SIZE + self.ICON_GAP)
-            shapes.append(image(sx, y,
-                                self.SERVER_SIZE, self.SERVER_SIZE,
+            sx = start_x + i * (server_size + icon_gap)
+            shapes.append(image(sx, y, server_size, server_size,
                                 IMAGES['cs_server']))
 
             # MA badge at this server's visible bottom-right corner
-            corner_x = sx + self.SERVER_VISIBLE_RIGHT * self.SERVER_SIZE
-            corner_y = y + self.SERVER_VISIBLE_BOTTOM * self.SERVER_SIZE
+            corner_x = sx + self.SERVER_VISIBLE_RIGHT * server_size
+            corner_y = y + self.SERVER_VISIBLE_BOTTOM * server_size
             bx = corner_x - badge_size * 0.3
             by = corner_y - badge_size * 0.3
             shapes.append(oval(bx, by, badge_size, badge_size,
                                fill=self.badge_fill,
                                stroke=COLORS['text_primary'], sw=0.5,
                                text_content=self.badge,
-                               fs=7, text_color=COLORS['text_primary']))
+                               fs=max(5, round(7 * scale)),
+                               text_color=COLORS['text_primary']))
 
         # Single shared label under the whole group
         label = (self.label_singular if self.count == 1
                  else f'{self.label_plural} ({self.count})')
-        shapes.append(text(x, y + self.SERVER_SIZE + self.LABEL_GAP,
-                           w, self.LABEL_H,
-                           label, fs=8,
+        shapes.append(text(x, y + server_size + label_gap,
+                           w, label_h,
+                           label, fs=max(5, round(8 * scale)),
                            color=COLORS['text_primary'],
                            align='center', valign='middle'))
         return shapes

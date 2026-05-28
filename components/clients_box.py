@@ -87,16 +87,25 @@ class ClientsAndStorage(Component):
         cy = y + header_h + self.GAP_AFTER_HEADER
 
         # Chips, wrapped into rows of <= MAX_CHIPS_PER_ROW. Each row is
-        # centered horizontally inside the sub-zone.
+        # centered horizontally inside the sub-zone. Scale chips down
+        # proportionally if the widest row overflows the available width.
         if self.chips:
             cw, ch = self.chips[0].preferred_size()
+            chip_gap = self.CHIP_GAP
             rows = self._chip_rows()
+            widest = max(len(r) for r in rows)
+            max_row_w = widest * cw + (widest - 1) * chip_gap
+            if max_row_w > inner_w + 1e-6 and max_row_w > 0:
+                scale = inner_w / max_row_w
+                cw = cw * scale
+                ch = ch * scale
+                chip_gap = chip_gap * scale
             for row_i, row_chips in enumerate(rows):
-                row_w = len(row_chips) * cw + (len(row_chips) - 1) * self.CHIP_GAP
+                row_w = len(row_chips) * cw + (len(row_chips) - 1) * chip_gap
                 chip_x = inner_x + (inner_w - row_w) / 2
                 for chip in row_chips:
                     shapes.extend(chip.render(chip_x, cy, cw, ch))
-                    chip_x += cw + self.CHIP_GAP
+                    chip_x += cw + chip_gap
                 cy += ch
                 if row_i < len(rows) - 1:
                     cy += self.GAP_BETWEEN_CHIP_ROWS

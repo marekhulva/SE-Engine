@@ -353,7 +353,7 @@ def get_layout_bounds(scenario):
                      for d in regular_data)
     sites_max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
     agp_list_bounds = scenario.get('agps') or ([scenario['agp']] if scenario.get('agp') else [])
-    if agp_list_bounds and has_onprem and not any(isinstance(s, SaaSSite) for s in sites):
+    if agp_list_bounds and has_onprem:
         _probe = AGPZone(agp_list_bounds[0])
         agp_min_w, _ = _probe.min_size()
         sites_max_w = max(CANVAS_W * 0.40,
@@ -437,11 +437,13 @@ def generate_layout(scenario):
                      for d in regular_data)
     sites_max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
 
-    if agp_config and has_onprem and not any(isinstance(s, SaaSSite) for s in sites):
+    if agp_config and has_onprem:
         _probe_zone = AGPZone(agp_config)
         agp_min_w, _ = _probe_zone.min_size()
         # Budget = canvas - margins - AGP minimum - gap between sites and AGP.
         # Give sites no less than 40% of the canvas (floor so they stay readable).
+        # Unconditional — applies whether SaaS/Cloud sites are present or not.
+        # The old `not any(SaaSSite)` guard caused sprawl whenever M365 was added.
         reserved = agp_min_w + AGP_GAP
         sites_max_w = max(CANVAS_W * 0.40, CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT - reserved)
 

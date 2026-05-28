@@ -62,6 +62,8 @@ class SaasTenantCard(Component):
 
     priority = 2
     placement = 'anchor'
+    shrink_x   = 0.60    # SaaS cards compress when canvas is tight (e.g. 3 sites + AGP)
+    shrink_ratio = 0.70  # min_size = 70% of preferred width
 
     # Preferred (unscaled) card dimensions
     CARD_H      = 0.80   # total card height

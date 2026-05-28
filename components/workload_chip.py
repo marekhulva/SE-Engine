@@ -43,22 +43,24 @@ class WorkloadChip(Component):
 
     def render(self, x, y, w, h):
         shapes = []
-        icon_area_h = h - self.LABEL_H
+        # Scale label height proportionally when chip is compressed so the
+        # icon:label ratio stays constant (avoids label dominating a tiny chip).
+        label_h = self.LABEL_H * (h / self.H)
+        icon_area_h = h - label_h
 
         # Icon: bottom-aligned in its area so the label tucks right under
         if self._icon_src:
-            pad = 0.04
-            icon_size = min(icon_area_h - pad * 2, w - pad * 2)
-            icon_x = x + (w - icon_size) / 2
-            # Push icon to the bottom of its area so there's almost no gap
-            # between icon and label
-            icon_y = y + icon_area_h - icon_size - pad * 0.5
-            shapes.append(image(icon_x, icon_y, icon_size, icon_size,
-                                self._icon_src))
+            pad = 0.04 * (h / self.H)   # scale padding too
+            icon_size = max(0.0, min(icon_area_h - pad * 2, w - pad * 2))
+            if icon_size > 0:
+                icon_x = x + (w - icon_size) / 2
+                icon_y = y + icon_area_h - icon_size - pad * 0.5
+                shapes.append(image(icon_x, icon_y, icon_size, icon_size,
+                                    self._icon_src))
 
         # Label nestled directly under the icon (tiny gap)
         shapes.append(text(x, y + icon_area_h - 0.01,
-                           w, self.LABEL_H,
-                           self.label, fs=6,
+                           w, label_h,
+                           self.label, fs=max(4, round(6 * h / self.H)),
                            color=COLORS['text_primary'], align='center'))
         return shapes
