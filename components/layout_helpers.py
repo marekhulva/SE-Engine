@@ -64,6 +64,16 @@ class HStack(Component):
         sizes = [c.preferred_size() for c in self.children]
         total_w = sum(cw for cw, _ in sizes) + self.gap * (len(self.children) - 1)
 
+        # Scale children + gaps proportionally when the available width is
+        # narrower than the total preferred width (e.g. when a site container
+        # has been compressed by the layout solver).
+        gap = self.gap
+        if total_w > w + 1e-6 and total_w > 0:
+            scale = w / total_w
+            sizes = [(cw * scale, ch) for cw, ch in sizes]
+            gap = self.gap * scale
+            total_w = w   # after scaling, fills exactly
+
         if self.align == 'center':
             cx = x + (w - total_w) / 2
         elif self.align == 'right':
@@ -74,5 +84,5 @@ class HStack(Component):
         shapes = []
         for child, (cw, ch) in zip(self.children, sizes):
             shapes.extend(child.render(cx, y + (h - ch) / 2, cw, ch))
-            cx += cw + self.gap
+            cx += cw + gap
         return shapes
