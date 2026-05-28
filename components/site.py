@@ -27,6 +27,7 @@ from .callout import Callout
 class OnPremSite(Component):
     priority = 1          # critical — last to shrink
     placement = 'anchor'  # natural position: packed left-to-right at top
+    shrink_x  = 0.75     # sites CAN shrink when canvas is crowded (e.g. sites + AGP)
 
     LABEL_H = 0.22
     UNDERLINE_H = 0.03
@@ -229,6 +230,13 @@ class OnPremSite(Component):
         h += self._callout_reserve()
         h += self._scatter_top   # extra space above label for Pre-Backup callout
         return (w, h)
+
+    def min_size(self):
+        """Sites can compress to ~70 % of preferred width when the canvas is
+        crowded (e.g. 3 on-prem sites + AGP + Cleanroom on the right).
+        Height stays fixed — we only compress horizontally."""
+        pw, ph = self.preferred_size()
+        return (pw * 0.70, ph)
 
     def render(self, x, y, w, h):
         shapes = []

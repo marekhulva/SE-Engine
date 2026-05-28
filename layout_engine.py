@@ -92,9 +92,9 @@ def _edge_gaps(sites_data, connections):
     return gaps
 
 
-def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
+def _pack_sites(sites, y_offset=0, gaps=None, layouts=None, max_w=None):
     """Place sites left-to-right. Uses the constraint solver to allocate
-    width: when total preferred width exceeds CANVAS_W, lower-priority
+    width: when total preferred width exceeds max_w, lower-priority
     components shrink first (per shrink_x elasticity). When even at
     min_size the sites overflow the canvas, the solver wraps to multiple
     rows (Phase C).
@@ -104,6 +104,10 @@ def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     Manual positioning: pass `layouts[i] = {'x': float, 'y': float}` to
     override the solver for site i. Either x or y alone may be set; the
     other axis falls back to solved value.
+
+    max_w: explicit budget (inches). When None, defaults to full canvas minus
+    margins. Callers that are also placing an AGP zone on the same row should
+    pass a reduced budget so sites leave room for AGP on the right.
     """
     from layout_solver import solve_rows
 
@@ -116,7 +120,8 @@ def _pack_sites(sites, y_offset=0, gaps=None, layouts=None):
     start_x = MARGIN_LEFT
     start_y = MARGIN_TOP + 0.1 + y_offset
 
-    max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
+    if max_w is None:
+        max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
     rows = solve_rows(sites, max_w=max_w, canvas_h=7.5,
                       start_x=start_x, start_y=start_y, gaps=gaps)
 
@@ -344,11 +349,22 @@ def get_layout_bounds(scenario):
     if isinstance(base_gap, (int, float)) and base_gap > 0:
         auto_gaps = [float(base_gap)] * max(0, len(sites) - 1)
 
+    has_onprem = any(not d.get('type') in ('cloud', 'saas', 'saas_app')
+                     for d in regular_data)
+    sites_max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
+    agp_list_bounds = scenario.get('agps') or ([scenario['agp']] if scenario.get('agp') else [])
+    if agp_list_bounds and has_onprem and not any(isinstance(s, SaaSSite) for s in sites):
+        _probe = AGPZone(agp_list_bounds[0])
+        agp_min_w, _ = _probe.min_size()
+        sites_max_w = max(CANVAS_W * 0.40,
+                          CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT - agp_min_w - AGP_GAP)
+
     _, rects = _pack_sites(
         sites,
         y_offset=unity_reserve,
         gaps=auto_gaps,
         layouts=[d.get('layout') for d in regular_data],
+        max_w=sites_max_w,
     )
 
     site_bounds = []
@@ -411,11 +427,30 @@ def generate_layout(scenario):
     auto_gaps = _edge_gaps(sites_data, scenario.get('connections', []))
     if isinstance(base_gap, (int, float)) and base_gap > 0:
         auto_gaps = [float(base_gap)] * max(0, len(sites) - 1)
+
+    # ── AGP-aware width budget ──────────────────────────────────────────
+    # When an AGP zone will be placed to the right of on-prem sites, reserve
+    # its minimum footprint from the sites' width budget BEFORE packing.
+    # This lets the constraint solver shrink sites proportionally so the whole
+    # diagram — sites + AGP — fits on one slide without horizontal sprawl.
+    has_onprem = any(not d.get('type') in ('cloud', 'saas', 'saas_app')
+                     for d in regular_data)
+    sites_max_w = CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT
+
+    if agp_config and has_onprem and not any(isinstance(s, SaaSSite) for s in sites):
+        _probe_zone = AGPZone(agp_config)
+        agp_min_w, _ = _probe_zone.min_size()
+        # Budget = canvas - margins - AGP minimum - gap between sites and AGP.
+        # Give sites no less than 40% of the canvas (floor so they stay readable).
+        reserved = agp_min_w + AGP_GAP
+        sites_max_w = max(CANVAS_W * 0.40, CANVAS_W - MARGIN_LEFT - MARGIN_RIGHT - reserved)
+
     site_shapes, rects = _pack_sites(
         sites,
         y_offset=unity_reserve,
         gaps=auto_gaps,
         layouts=[d.get('layout') for d in regular_data],
+        max_w=sites_max_w,
     )
     shapes.extend(site_shapes)
     shapes.extend(_route_connections(scenario, sites_data, rects, sites=sites))

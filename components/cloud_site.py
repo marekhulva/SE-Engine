@@ -58,13 +58,18 @@ class CloudSite(OnPremSite):
                 'message': f'{meta["label"]} Backups Cloud-Native + Immutable',
                 'kind': 'positive',
             }
+        # Commvault Gateways get the same purple badge as CS; non-Commvault
+        # cloud agents use the provider's brand color instead.
+        gw_badge_color = (COLORS['purple_primary']
+                          if vendor == 'commvault'
+                          else self.brand_color)
         super().__init__(name=name,
                          backup_target=backup_target,
                          media_agents=media_agents,
                          ma_badge='GW',
                          ma_label_singular='Gateway',
                          ma_label_plural='Gateways',
-                         ma_badge_fill=self.brand_color,
+                         ma_badge_fill=gw_badge_color,
                          unit_label='Instances',   # cloud sites count instances, not VMs
                          **kwargs)
 
